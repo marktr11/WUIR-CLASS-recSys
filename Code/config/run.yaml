@@ -1,0 +1,18 @@
+taxonomy_path: Data - Collection/Final/taxonomy.csv
+course_path: Data - Collection/Final/courses.json
+cv_path: Data - Collection/Final/resumes.json
+job_path: Data - Collection/Final/jobs.json
+mastery_levels_path: Data - Collection/Final/mastery_levels.json
+results_path: Code/results
+level_3: true
+nb_courses: 100
+nb_cvs: -1
+max_cv_skills: 15
+nb_jobs: 100
+threshold: 0.8
+k: 1
+model: ppo
+total_steps: 5000
+eval_freq: 1000
+nb_runs: 1
+seed: 42
