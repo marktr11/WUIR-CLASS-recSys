@@ -4,7 +4,7 @@ cv_path: Data - Collection/Final/resumes.json
 job_path: Data - Collection/Final/jobs.json
 mastery_levels_path: Data - Collection/Final/mastery_levels.json
 results_path: Code/results
-level_3: true
+level_3: true #  Whether to use only the third level of the taxonomy and not the fourth  (if true: less skills)
 nb_courses: 100
 nb_cvs: -1
 max_cv_skills: 15
