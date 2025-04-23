@@ -37,10 +37,29 @@ class Dataset:
         self.make_course_consistent()
 
     def load_skills(self):
+        """
+        Loads skills from a taxonomy file into the instance, processes them based on configuration,
+        and creates a mapping of skills to integer indices.
+
+        The method reads a CSV file specified in the configuration and processes the skills
+        either by extracting unique values from the 'Type Level 3' column (if level_3 is True)
+        or using the 'unique_id' column (if level_3 is False). It populates `self.skills` with
+        a set of skills and `self.skills2int` with a dictionary mapping skills to integer indices.
+
+        Attributes Modified:
+            self.skills (set): A set of unique skill identifiers or level 3 types.
+            self.skills2int (dict): A dictionary mapping skill identifiers to integer indices.
+
+        Raises:
+            FileNotFoundError: If the taxonomy file path in `self.config["taxonomy_path"]` is invalid.
+            KeyError: If required columns ('unique_id' or 'Type Level 3') are missing in the CSV file.
+        """
         # load the skills from the taxonomy file
         self.skills = pd.read_csv(self.config["taxonomy_path"])
 
         # if level_3 is true, we only use the level 3 of the skill taxonomy, then we need to get the unique values in column Type Level 3
+        ## Note: A single taxonomy skill may be shared across multiple skills. Using Level 3 taxonomy is preferred
+        # as it maintains effective skill categorization. Levels 1 or 2 are too broad, resulting in overly general domains.
         if self.config["level_3"]:
             # get all the unique values in column Type Level 3
             level2int = {
@@ -57,6 +76,9 @@ class Dataset:
                 key: level2int[value] for key, value in skills_dict.items()
             }
             self.skills = set(self.skills2int.values())
+            #print(level2int) #output : software and applications development and analysis : 0
+            #print(skills_dict) #output : 1000: software and applications development and analysis
+            #print(skills2int) #output : 1000: 0
         # if level_3 is false, we use the unique_id column as the skills
         else:
             self.skills = set(self.skills["unique_id"])
