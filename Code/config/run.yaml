@@ -6,7 +6,7 @@ mastery_levels_path: Data - Collection/Final/mastery_levels.json
 results_path: Code/results
 level_3: true #  Whether to use only the third level of the taxonomy and not the fourth  (if true: less skills)
 nb_courses: 100
-nb_cvs: -1
+nb_cvs: -1 #Number of resumes to use (set to -1 to use all)
 max_cv_skills: 15  # Maximum number of skills per resume
 nb_jobs: 100
 threshold: 0.8
