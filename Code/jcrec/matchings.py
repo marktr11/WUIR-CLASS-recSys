@@ -2,20 +2,39 @@ import numpy as np
 
 
 def matching(level1, level2):
+    """
+    Compute the matching score between two skill level vectors.
 
+    This function compares two arrays representing skill levels (e.g., from a learner and a job/course)
+    and calculates how well `level1` matches `level2`.
+    Only skills that are required (non-zero in `level2`) are considered.
+
+    The matching score is computed as:
+    - For each required skill (non-zero in `level2`), take the ratio of the learner's skill to the required level,
+      capped at 1 (since minimum is taken).
+    - Sum the ratios and normalize by the number of required skills.
+
+    Args:
+        level1 (np.ndarray): An array of skill levels for the first entity (e.g., learner).
+        level2 (np.ndarray): An array of required skill levels for the second entity (e.g., job or course).
+
+    Returns:
+        float: A matching score between 0 and 1, where 1 indicates a perfect match.
+    """
     # get the minimum of the two arrays
-    minimum_skill = np.minimum(level1, level2)
+    minimum_skill = np.minimum(level1, level2) #ouput : length of nb of skills (46)
 
-    # get the indices of the non zero elements of the job skill levels
+    # get the indices of the non-zero elements of the job/course skill levels
     nonzero_indices = np.nonzero(level2)[0]
 
-    # divide the minimum by the job skill levels on the non zero indices
+    # divide the minimum by the job/course skill levels at non-zero indices
     matching = minimum_skill[nonzero_indices] / level2[nonzero_indices]
 
-    # sum the result and divide by the number of non zero job skill levels
+    # sum the result and divide by the number of non-zero job/course skill levels
     matching = np.sum(matching) / np.count_nonzero(level2)
 
     return matching
+
 
 
 def learner_job_matching(learner, job):
