@@ -48,10 +48,10 @@ def learner_job_matching(learner, job):
 
 def learner_course_required_matching(learner, course):
 
-    required_course = course[0]
+    required_course = course[0] #required skills
 
     # check if the course has no required skills and return 1
-    if not np.any(required_course):
+    if not np.any(required_course): # not( true if at least one element is not 0 )
         return 1.0
 
     return matching(learner, required_course)
@@ -59,7 +59,7 @@ def learner_course_required_matching(learner, course):
 
 def learner_course_provided_matching(learner, course):
 
-    provided_course = course[1]
+    provided_course = course[1] #provided skills
 
     return matching(learner, provided_course)
 
@@ -70,4 +70,4 @@ def learner_course_matching(learner, course):
     required_matching = learner_course_required_matching(learner, course)
     provided_matching = learner_course_provided_matching(learner, course)
 
-    return required_matching * (1 - provided_matching)
+    return required_matching * (1 - provided_matching) # user-course relevantness
