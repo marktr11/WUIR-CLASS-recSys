@@ -13,23 +13,28 @@ import matchings
 class CourseRecEnv(gym.Env):
     # The CourseRecEnv class is a gym environment that simulates the recommendation of courses to learners. It is used to train the Reinforce model.
     def __init__(self, dataset, threshold=0.8, k=3):
-        self.dataset = dataset
-        self.nb_skills = len(dataset.skills)
+        self.dataset = dataset 
+        self.nb_skills = len(dataset.skills) # 46 skills
         self.mastery_levels = [
-            elem for elem in list(dataset.mastery_levels.values()) if elem > 0
+            elem for elem in list(dataset.mastery_levels.values()) if elem > 0 # mastery level: [1,2,3,-1]
         ]
         self.max_level = max(self.mastery_levels)
-        self.nb_courses = len(dataset.courses)
+        self.nb_courses = len(dataset.courses) #100 courses
         # get the minimum and maximum number of skills of the learners using np.nonzero
-        self.min_skills = min(np.count_nonzero(self.dataset.learners, axis=1))
-        self.max_skills = max(np.count_nonzero(self.dataset.learners, axis=1))
-        self.threshold = threshold
+        self.min_skills = min(np.count_nonzero(self.dataset.learners, axis=1)) # 1
+        self.max_skills = max(np.count_nonzero(self.dataset.learners, axis=1)) # 15
+        self.threshold = threshold 
         self.k = k
-        # The observation space is a vector of length nb_skills that represents the learner's skills
+        # The observation space is a vector of length nb_skills that represents the learner's skills.
+        # The vector contains skill levels, where the minimum level is 0 and the maximum level is max_level (e.g., 3).
+        # We cannot set the lower bound to -1 because negative values are not allowed in this Box space.
         self.observation_space = gym.spaces.Box(
-            low=0, high=self.max_level, shape=(self.nb_skills,), dtype=np.int32
-        )
-        # The action space is a discrete space of size nb_courses that represents the courses to be recommended
+            low=0, high=self.max_level, shape=(self.nb_skills,), dtype=np.int32)
+
+        # Define the action space for the environment.
+        # This is a discrete space where each action corresponds to recommending a specific course.
+        # The total number of possible actions is equal to the number of available courses (nb_courses).
+        # The agent will select an integer in [0, nb_courses - 1], representing the index of the recommended course.
         self.action_space = gym.spaces.Discrete(self.nb_courses)
 
     def _get_obs(self):

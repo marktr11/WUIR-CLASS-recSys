@@ -172,3 +172,6 @@ check_*
 ids.txt
 playground.ipynb
 setup.py
+
+#Experiment file
+Main_test.py

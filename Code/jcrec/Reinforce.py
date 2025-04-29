@@ -93,14 +93,15 @@ class Reinforce:
         # Evaluate the model
         time_start = process_time()
         recommendations = dict()
-        for i, learner in enumerate(self.dataset.learners):
-            self.eval_env.reset(learner=learner)
+        for i, learner in enumerate(self.dataset.learners):#run by row
+            self.eval_env.reset(learner=learner) #initialize _agent_skills = learner if not NONE
             done = False
             index = self.dataset.learners_index[i]
             recommendation_sequence = []
             while not done:
-                obs = self.eval_env._get_obs()
-                action, _state = self.model.predict(obs, deterministic=True)
+                obs = self.eval_env._get_obs() #return _agent_skills which is current state
+                action, _state = self.model.predict(obs, deterministic=True) #deterministic != transition probab in env
+                # action is Recommended course index
                 obs, reward, done, _, info = self.eval_env.step(action)
                 if reward != -1:
                     recommendation_sequence.append(action.item())
