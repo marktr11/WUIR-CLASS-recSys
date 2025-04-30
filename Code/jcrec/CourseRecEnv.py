@@ -33,7 +33,7 @@ class CourseRecEnv(gym.Env):
 
         # Define the action space for the environment.
         # This is a discrete space where each action corresponds to recommending a specific course.
-        # The total number of possible actions is equal to the number of available courses (nb_courses).
+        # The total number of possible actions is equal to the number of available courses (nb_courses = 100).
         # The agent will select an integer in [0, nb_courses - 1], representing the index of the recommended course.
         self.action_space = gym.spaces.Discrete(self.nb_courses)
 
@@ -112,25 +112,29 @@ class CourseRecEnv(gym.Env):
         """
         # Update the agent's skills with the course provided_skills
 
-        course = self.dataset.courses[action]
-        learner = self._agent_skills
+        course = self.dataset.courses[action] # 2d array, [0]:required skills; [1]:provided skills
+        learner = self._agent_skills # Current learner skill vector (agent state)
 
         required_matching = matchings.learner_course_required_matching(learner, course)
         provided_matching = matchings.learner_course_provided_matching(learner, course)
-        if required_matching < self.threshold or provided_matching >= 1.0:
+        if required_matching < self.threshold or provided_matching >= 1.0: # The case where the system needs to strongly detect recommendations that fall outside the scope of C_u
             observation = self._get_obs()
             reward = -1
             terminated = True
             info = self._get_info()
             return observation, reward, terminated, False, info
+        
 
-        self._agent_skills = np.maximum(self._agent_skills, course[1])
+        # Accept the course: update learner's skills using element-wise max between current and provided skills
+        self._agent_skills = np.maximum(self._agent_skills, course[1]) #else learn the recommended course and update state
 
         observation = self._get_obs()
         info = self._get_info()
-        reward = info["nb_applicable_jobs"]
+        reward = info["nb_applicable_jobs"] # nb_applicable_jobs
+        # Track number of recommended courses and check if max (k) is reached
         self.nb_recommendations += 1
         terminated = self.nb_recommendations == self.k
+
 
         return observation, reward, terminated, False, info
 
@@ -145,44 +149,65 @@ class EvaluateCallback(BaseCallback):
         self.mode = "w"
 
     def _on_step(self):
-        """Method required by the callback. It is called at each step of the training. It evaluates the model every eval_freq steps.
+        """
+        Custom evaluation method called at every step of training by the callback system.
+
+        This method performs model evaluation every `eval_freq` steps using the current policy on a fixed evaluation environment (`self.eval_env`).
+        It calculates the average number of applicable jobs (reward signal) across all learners in the dataset, prints it, and logs the result to a file.
 
         Returns:
-            bool: Always returns True to continue training
+            bool: Always returns True to indicate that training should continue.
         """
+        # Only evaluate every 'eval_freq' training steps
         if self.n_calls % self.eval_freq == 0:
-            time_start = process_time()
-            avg_jobs = 0
+            time_start = process_time()  # Start timing the evaluation
+            avg_jobs = 0  # Accumulator for average jobs across learners
+
+            # Loop through each learner in the evaluation dataset
             for learner in self.eval_env.dataset.learners:
-                self.eval_env.reset(learner=learner)
-                done = False
-                tmp_avg_jobs = self.eval_env._get_info()["nb_applicable_jobs"]
+                self.eval_env.reset(learner=learner)  # Reset environment with current learner
+                done = False  # Flag to control evaluation episode
+                tmp_avg_jobs = self.eval_env._get_info()["nb_applicable_jobs"]  # Initial jobs applicable without any recommendations
+
+                # Run one full evaluation episode for the learner
                 while not done:
-                    obs = self.eval_env._get_obs()
-                    action, _state = self.model.predict(obs, deterministic=True)
-                    obs, reward, done, _, info = self.eval_env.step(action)
+                    obs = self.eval_env._get_obs()  # Get current observation (learner's skills)
+                    action, _state = self.model.predict(obs, deterministic=True)  # Predict action using current policy
+                    obs, reward, terminated, truncated, info = self.eval_env.step(action)  # Step in environment
+                    done = terminated or truncated  # Properly compute done flag
+
+                    # Only update the reward if the recommendation was valid
                     if reward != -1:
                         tmp_avg_jobs = reward
-                avg_jobs += tmp_avg_jobs
-            time_end = process_time()
+
+                avg_jobs += tmp_avg_jobs  # Add learner's result to total
+
+            time_end = process_time()  # End timing the evaluation
+
+            # Log the result to the console
             print(
-                f"Iteration {self.n_calls}. Average jobs: {avg_jobs / len(self.eval_env.dataset.learners)} Time: {time_end - time_start}"
+                f"Iteration {self.n_calls}. "
+                f"Average jobs: {avg_jobs / len(self.eval_env.dataset.learners)} "
+                f"Time: {time_end - time_start}"
             )
+
+            # Write evaluation result to file
             with open(
                 os.path.join(
                     self.eval_env.dataset.config["results_path"],
                     self.all_results_filename,
                 ),
-                self.mode,
+                self.mode,  # 'w' for first time, 'a' for append afterward
             ) as f:
                 f.write(
-                    str(self.n_calls)
-                    + " "
-                    + str(avg_jobs / len(self.eval_env.dataset.learners))
-                    + " "
-                    + str(time_end - time_start)
-                    + "\n"
+                    f"{self.n_calls} "
+                    f"{avg_jobs / len(self.eval_env.dataset.learners)} "
+                    f"{time_end - time_start}\n"
                 )
+
+            # After first write, switch mode to append for future evaluations
             if self.mode == "w":
                 self.mode = "a"
-        return True  # Return True to continue training
+
+        return True  # Returning True continues training
+

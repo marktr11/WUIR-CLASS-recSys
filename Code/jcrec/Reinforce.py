@@ -54,12 +54,11 @@ class Reinforce:
 
     def get_model(self):
         """Sets the model to be used for the recommendation. The model is from stable-baselines3 and is chosen based on the model_name attribute."""
+        # on training env
         if self.model_name == "dqn":
             self.model = DQN(env=self.train_env, verbose=0, policy="MlpPolicy")
         elif self.model_name == "a2c":
-            self.model = A2C(
-                env=self.train_env, verbose=0, policy="MlpPolicy", device="cpu"
-            )
+            self.model = A2C(env=self.train_env, verbose=0, policy="MlpPolicy", device="cpu")
         elif self.model_name == "ppo":
             self.model = PPO(env=self.train_env, verbose=0, policy="MlpPolicy")
 
@@ -87,10 +86,10 @@ class Reinforce:
 
         results["original_applicable_jobs"] = avg_app_j
 
-        # Train the model
-        self.model.learn(total_timesteps=self.total_steps, callback=self.eval_callback)
+        # Train the model using train env
+        self.model.learn(total_timesteps=self.total_steps, callback=self.eval_callback)# find the policy
 
-        # Evaluate the model
+        # Evaluate the model using eval env
         time_start = process_time()
         recommendations = dict()
         for i, learner in enumerate(self.dataset.learners):#run by row
@@ -100,8 +99,9 @@ class Reinforce:
             recommendation_sequence = []
             while not done:
                 obs = self.eval_env._get_obs() #return _agent_skills which is current state
+                # The self model was trained on historical data and has already learned a policy.
                 action, _state = self.model.predict(obs, deterministic=True) #deterministic != transition probab in env
-                # action is Recommended course index
+                # action is Recommended course index [0,99]action_space
                 obs, reward, done, _, info = self.eval_env.step(action)
                 if reward != -1:
                     recommendation_sequence.append(action.item())

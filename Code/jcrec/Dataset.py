@@ -133,7 +133,7 @@ class Dataset:
                 self.learners[index][skill] = level
 
             self.learners_index[index] = learner_id
-            #self.learners_index[learner_id] = index
+            self.learners_index[learner_id] = index #????? why 
 
             index += 1
 
