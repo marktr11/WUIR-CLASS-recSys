@@ -10,7 +10,7 @@ from CourseRecEnv import CourseRecEnv, EvaluateCallback
 
 class Reinforce:
     def __init__(
-        self, dataset, model, k, threshold, run, total_steps=1000, eval_freq=100
+        self, dataset, model, k, threshold, run, total_steps=1000, eval_freq=100, feature = "skip-expertise"
     ):
         self.dataset = dataset
         self.model_name = model
@@ -23,28 +23,53 @@ class Reinforce:
         self.train_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k)
         self.eval_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k)
         self.get_model()
-        self.all_results_filename = (
+        self.feature = feature
+        if self.feature == "skip-expertise":
+            self.all_results_filename = (
             "all_"
             + self.model_name
+            +"_skip-expertise"
             + "_nbskills_"
             + str(len(self.dataset.skills))
             + "_k_"
             + str(self.k)
             + "_run_"
             + str(run)
-            + ".txt"
-        )
-        self.final_results_filename = (
-            "final_"
-            + self.model_name
-            + "_nbskills_"
-            + str(len(self.dataset.skills))
-            + "_k_"
-            + str(self.k)
-            + "_run_"
-            + str(self.run)
-            + ".json"
-        )
+            + ".txt")
+            self.final_results_filename = (
+                "final_"
+                + self.model_name
+                + "_skip-expertise"
+                + "_nbskills_"
+                + str(len(self.dataset.skills))
+                + "_k_"
+                + str(self.k)
+                + "_run_"
+                + str(self.run)
+                + ".json")
+        else :
+            self.all_results_filename = (
+                "all_"
+                + self.model_name
+                + "_nbskills_"
+                + str(len(self.dataset.skills))
+                + "_k_"
+                + str(self.k)
+                + "_run_"
+                + str(run)
+                + ".txt"
+            )
+            self.final_results_filename = (
+                "final_"
+                + self.model_name
+                + "_nbskills_"
+                + str(len(self.dataset.skills))
+                + "_k_"
+                + str(self.k)
+                + "_run_"
+                + str(self.run)
+                + ".json"
+            )
 
         self.eval_callback = EvaluateCallback(
             self.eval_env,

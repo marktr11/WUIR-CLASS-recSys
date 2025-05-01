@@ -9,7 +9,7 @@ from collections import defaultdict
 import matchings
 
 
-class Dataset: #modified class : skip expertise
+class Dataset_c: #original class
     # The Dataset class is used to load and store the data of the recommendation problem
     def __init__(self, config):
         self.config = config
@@ -28,13 +28,13 @@ class Dataset: #modified class : skip expertise
     def load_data(self):
         """Load the data from the files specified in the config and store it in the class attributes"""
         self.rng = random.Random(self.config["seed"])
-        self.load_skills() 
+        self.load_skills()
         self.load_mastery_levels()
-        self.load_learners() #modify
-        self.load_jobs() #modify
-        self.load_courses() #modify
+        self.load_learners()
+        self.load_jobs()
+        self.load_courses()
         self.get_subsample()
-        #self.make_course_consistent()
+        self.make_course_consistent()
 
     def load_skills(self):
         """
@@ -88,41 +88,24 @@ class Dataset: #modified class : skip expertise
         """Load the mastery levels from the file specified in the config and store it in the class attribute"""
         self.mastery_levels = json.load(open(self.config["mastery_levels_path"]))
 
-    # def get_avg_skills(self, skill_list, replace_unk):
-    #     avg_skills = defaultdict(list)
-    #     for skill, mastery_level in skill_list:
-    #         # if the mastery level is a string and is in the mastery levels, we replace it with the corresponding value, otherwise we do nothing and continue to the next skill
-    #         if isinstance(mastery_level, str) and mastery_level in self.mastery_levels:
-    #             mastery_level = self.mastery_levels[mastery_level]
-    #             if mastery_level == -1:
-    #                 mastery_level = replace_unk
-    #             skill = self.skills2int[skill]  
-    #             avg_skills[skill].append(mastery_level)
-    #     # we take the average of the mastery levels for each skill because on our dataset we can have multiple mastery levels for the same skill
-    #     for skill in avg_skills.keys():
-    #         avg_skills[skill] = sum(avg_skills[skill]) / len(avg_skills[skill])
-    #         avg_skills[skill] = round(avg_skills[skill])
+    def get_avg_skills(self, skill_list, replace_unk):
+        avg_skills = defaultdict(list)
+        for skill, mastery_level in skill_list:
+            # if the mastery level is a string and is in the mastery levels, we replace it with the corresponding value, otherwise we do nothing and continue to the next skill
+            if isinstance(mastery_level, str) and mastery_level in self.mastery_levels:
+                mastery_level = self.mastery_levels[mastery_level]
+                if mastery_level == -1:
+                    mastery_level = replace_unk
+                skill = self.skills2int[skill]
+                avg_skills[skill].append(mastery_level)
+        # we take the average of the mastery levels for each skill because on our dataset we can have multiple mastery levels for the same skill
+        for skill in avg_skills.keys():
+            avg_skills[skill] = sum(avg_skills[skill]) / len(avg_skills[skill])
+            avg_skills[skill] = round(avg_skills[skill])
 
-    #     return avg_skills
+        return avg_skills
 
-    def get_base_skills(self,skill_list): #new feature
-        """
-        Convert a learner's list of type-4 skills to a unique set of type-3 base skills.
-
-        Args:
-            skill_list (list of tuples): Each tuple contains (skill_id, mastery_level),
-                                        e.g., (1024, 'beginner').
-
-        Returns:
-            set: A set of base skill IDs (type-3) derived from the input skill list.
-                The number of base skills may be less than or equal to the original list,
-                due to mapping multiple type-4 skills to the same base skill.
-        """
-        base_skills = {self.skills2int[skill] for skill, _ in skill_list}
-        return base_skills
-    
-
-    def load_learners(self): #### Function modified
+    def load_learners(self, replace_unk=1):
         """Load the learners from the file specified in the config and store it in the class attribute
 
         Args:
@@ -139,16 +122,15 @@ class Dataset: #modified class : skip expertise
         # fill the numpy array with the learners skill proficiency levels from the json file
         for learner_id, learner in learners.items():
 
-            #avg_learner = self.get_avg_skills(learner, replace_unk)
-            learner_base_skills = self.get_base_skills(learner)
+            avg_learner = self.get_avg_skills(learner, replace_unk)
 
             # if the number of skills is greater than the max_learner_skills, we skip the learner
-            if len(learner_base_skills) > self.max_learner_skills:
+            if len(avg_learner) > self.max_learner_skills:
                 continue
 
             # we fill the numpy array with the averaged mastery levels
-            for skill in learner_base_skills:
-                self.learners[index][skill] = 1
+            for skill, level in avg_learner.items():
+                self.learners[index][skill] = level
 
             self.learners_index[index] = learner_id
             self.learners_index[learner_id] = index #????? why 
@@ -158,7 +140,7 @@ class Dataset: #modified class : skip expertise
         # we update the learners numpy array with the correct number of rows
         self.learners = self.learners[:index]
 
-    def load_jobs(self): #### Function modified
+    def load_jobs(self, replace_unk=3):
         """Load the jobs from the file specified in the config and store it in the class attribute
 
         Args:
@@ -171,14 +153,13 @@ class Dataset: #modified class : skip expertise
         for job_id, job in jobs.items():
             self.jobs_index[index] = job_id
             self.jobs_index[job_id] = index
-            #avg_job = self.get_avg_skills(job, replace_unk)
-            job_base_skills = self.get_base_skills(job)
+            avg_job = self.get_avg_skills(job, replace_unk)
 
-            for skill in job_base_skills:
-                self.jobs[index][skill] = 1
+            for skill, level in avg_job.items():
+                self.jobs[index][skill] = level
             index += 1
 
-    def load_courses(self): #### Function modified
+    def load_courses(self, replace_unk=2):
         """Load the courses from the file specified in the config and store it in the class attribute
 
         Args:
@@ -196,14 +177,14 @@ class Dataset: #modified class : skip expertise
             self.courses_index[course_id] = index
             self.courses_index[index] = course_id
 
-            provided_base_skills = self.get_base_skills(course["to_acquire"])
-            for skill in provided_base_skills:
-                self.courses[index][1][skill] = 1
+            avg_provided = self.get_avg_skills(course["to_acquire"], replace_unk)
+            for skill, level in avg_provided.items():
+                self.courses[index][1][skill] = level
 
             if "required" in course:
-                required_base_skills = self.get_base_skills(course["required"])
-                for skill in required_base_skills:
-                    self.courses[index][0][skill] = 1
+                avg_required = self.get_avg_skills(course["required"], replace_unk)
+                for skill, level in avg_required.items():
+                    self.courses[index][0][skill] = level
 
             index += 1
         # update the courses numpy array with the correct number of rows
@@ -240,17 +221,17 @@ class Dataset: #modified class : skip expertise
             }
             self.courses_index.update({v: k for k, v in self.courses_index.items()})
 
-    # def make_course_consistent(self):
-    #     """Make the courses consistent by removing the skills that are provided and required at the same time"""
-    #     for course in self.courses:
-    #         for skill_id in range(len(self.skills)):
-    #             required_level = course[0][skill_id]
-    #             provided_level = course[1][skill_id]
-    #             if provided_level != 0 and provided_level <= required_level:
-    #                 if provided_level == 1:
-    #                     course[0][skill_id] = 0
-    #                 else:
-    #                     course[0][skill_id] = provided_level - 1
+    def make_course_consistent(self):
+        """Make the courses consistent by removing the skills that are provided and required at the same time"""
+        for course in self.courses:
+            for skill_id in range(len(self.skills)):
+                required_level = course[0][skill_id]
+                provided_level = course[1][skill_id]
+                if provided_level != 0 and provided_level <= required_level:
+                    if provided_level == 1:
+                        course[0][skill_id] = 0
+                    else:
+                        course[0][skill_id] = provided_level - 1
 
     def get_jobs_inverted_index(self):
         """Get the inverted index for the jobs. The inverted index is a dictionary that maps the skill to the jobs that require it"""

@@ -117,6 +117,7 @@ class CourseRecEnv(gym.Env):
 
         required_matching = matchings.learner_course_required_matching(learner, course)
         provided_matching = matchings.learner_course_provided_matching(learner, course)
+        # Function design : A.2
         if required_matching < self.threshold or provided_matching >= 1.0: # The case where the system needs to strongly detect recommendations that fall outside the scope of C_u
             observation = self._get_obs()
             reward = -1

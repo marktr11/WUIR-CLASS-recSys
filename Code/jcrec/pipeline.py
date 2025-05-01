@@ -4,6 +4,7 @@ import argparse
 import yaml
 
 from Dataset import Dataset
+from Dataset_c import Dataset_c
 from Greedy import Greedy
 from Optimal import Optimal
 from Reinforce import Reinforce
@@ -11,9 +12,14 @@ from Reinforce import Reinforce
 
 def create_and_print_dataset(config):
     """Create and print the dataset."""
-    dataset = Dataset(config)
-    print(dataset)
-    return dataset
+    if config["feature"] == "skip-expertise":
+       dataset = Dataset(config)
+       print(dataset)
+       return dataset
+    else:
+       dataset = Dataset_c(config)
+       print(dataset)
+       return dataset
 
 
 def main():
@@ -46,6 +52,12 @@ def main():
             recommendation_method(config["k"], run)
         # Otherwise, we use the Reinforce class, described in Reinforce.py
         else:
+            if config["feature"] == "skip-expertise":
+                print("skip-expertise")
+                print("-------------------------------------------")
+            else: 
+                print("expertise")
+                print("-------------------------------------------")
             recommender = Reinforce(
                 dataset,
                 config["model"],
@@ -54,6 +66,7 @@ def main():
                 run,
                 config["total_steps"],
                 config["eval_freq"],
+                config["feature"],
             )
             recommender.reinforce_recommendation()
 
