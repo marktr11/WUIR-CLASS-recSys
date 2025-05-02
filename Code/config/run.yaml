@@ -12,7 +12,7 @@ nb_jobs: 100
 threshold: 0.8
 k: 1
 model: dqn
-total_steps: 500000
+total_steps: 1000
 eval_freq: 1000
 nb_runs: 1
 seed: 42
