@@ -12,8 +12,10 @@ nb_jobs: 100
 threshold: 0.8
 k: 1
 model: dqn
-total_steps: 1000
+total_steps: 500000
 eval_freq: 1000
 nb_runs: 1
 seed: 42
-feature: "skip-expertise"
+feature: "original" #"skip-expertise" 
+feature2: "None"
+exp_feature :  "courses-consistency" # "None" #use courses-consistency only if feature = "skip-expertise"
