@@ -11,7 +11,7 @@ from CourseRecEnv import CourseRecEnv, EvaluateCallback
 
 class Reinforce:
     def __init__(
-        self, dataset, model, k, threshold, run, total_steps=1000, eval_freq=100, feature = "skip-expertise"
+        self, dataset, model, k, threshold, run, total_steps=1000, eval_freq=100, feature = "skip-expertise",exp_feature = "None"
     ):
         self.dataset = dataset
         self.model_name = model
@@ -25,30 +25,57 @@ class Reinforce:
         self.eval_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k)
         self.get_model()
         self.feature = feature
+        self.exp_feature = exp_feature
         if self.feature == "skip-expertise":
-            self.all_results_filename = (
-            "all_"
-            + self.model_name
-            +"_skip-expertise"
-            + "_nbskills_"
-            + str(len(self.dataset.skills))
-            + "_k_"
-            + str(self.k)
-            + "_run_"
-            + str(run)
-            + ".txt")
-            self.final_results_filename = (
-                "final_"
+            if self.exp_feature == "courses-consistency" :
+                self.all_results_filename = (
+                "all_"
                 + self.model_name
-                + "_skip-expertise"
+                +"_skip-expertise"
+                + "_courses-consistency"
                 + "_nbskills_"
                 + str(len(self.dataset.skills))
                 + "_k_"
                 + str(self.k)
                 + "_run_"
-                + str(self.run)
-                + ".json")
-        else :
+                + str(run)
+                + ".txt")
+                self.final_results_filename = (
+                    "final_"
+                    + self.model_name
+                    + "_skip-expertise"
+                    +"_courses-consistency"
+                    + "_nbskills_"
+                    + str(len(self.dataset.skills))
+                    + "_k_"
+                    + str(self.k)
+                    + "_run_"
+                    + str(self.run)
+                    + ".json")
+            else :
+                self.all_results_filename = (
+                "all_"
+                + self.model_name
+                +"_skip-expertise"
+                + "_nbskills_"
+                + str(len(self.dataset.skills))
+                + "_k_"
+                + str(self.k)
+                + "_run_"
+                + str(run)
+                + ".txt")
+                self.final_results_filename = (
+                    "final_"
+                    + self.model_name
+                    + "_skip-expertise"
+                    + "_nbskills_"
+                    + str(len(self.dataset.skills))
+                    + "_k_"
+                    + str(self.k)
+                    + "_run_"
+                    + str(self.run)
+                    + ".json")
+        else : ##### original
             self.all_results_filename = (
                 "all_"
                 + self.model_name
