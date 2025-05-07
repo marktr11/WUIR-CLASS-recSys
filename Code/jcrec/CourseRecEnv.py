@@ -110,24 +110,22 @@ class CourseRecEnv(gym.Env):
         Returns:
             tuple: the new observation, the reward, whether the episode is terminated, additional information
         """
-        # Update the agent's skills with the course provided_skills
-
         course = self.dataset.courses[action] # 2d array, [0]:required skills; [1]:provided skills
         learner = self._agent_skills # Current learner skill vector (agent state)
 
-        required_matching = matchings.learner_course_required_matching(learner, course)
         provided_matching = matchings.learner_course_provided_matching(learner, course)
-        # Function design : A.2
-        if required_matching < self.threshold or provided_matching >= 1.0: # The case where the system needs to strongly detect recommendations that fall outside the scope of C_u
+        
+        # In binary case, we only check if the course provides any new skills
+        # If all required skills are 0 (removed in make_course_consistent), we only need to check provided_matching
+        if provided_matching == 1.0:  # Learner already has all skills the course provides
             observation = self._get_obs()
             reward = -1
             terminated = True
             info = self._get_info()
             return observation, reward, terminated, False, info
-        
 
         # Accept the course: update learner's skills using element-wise max between current and provided skills
-        self._agent_skills = np.maximum(self._agent_skills, course[1]) #else learn the recommended course and update state
+        self._agent_skills = np.maximum(self._agent_skills, course[1])
 
         observation = self._get_obs()
         info = self._get_info()
