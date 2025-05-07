@@ -338,25 +338,24 @@ class Dataset: #modified class : skip expertise
         avg_applicable_jobs /= len(self.learners)
         return avg_applicable_jobs
 
-    def get_all_enrollable_courses(self, learner, threshold):
-        """Get all the enrollable courses for a learner
+    def get_all_enrollable_courses(self, learner):
+        """Get all the enrollable courses for a learner in binary case.
+        Since required skills are handled in make_course_consistent(), we only need to check
+        if the course provides any new skills that the learner doesn't have.
 
         Args:
             learner (list): list of skills and mastery level of the learner
-            threshold (float): the threshold for the matching
 
         Returns:
             dict: dictionary of enrollable courses
         """
         enrollable_courses = {}
         for i, course in enumerate(self.courses):
-            required_matching = matchings.learner_course_required_matching(
-                learner, course
-            )
             provided_matching = matchings.learner_course_provided_matching(
                 learner, course
             )
-            if required_matching >= threshold and provided_matching < 1.0:
+            # Only check if the course provides any new skills
+            if provided_matching < 1.0:  # Learner doesn't have all skills the course provides
                 enrollable_courses[i] = course
         return enrollable_courses
 
