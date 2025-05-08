@@ -3,37 +3,32 @@ import numpy as np
 
 def matching(level1, level2):
     """
-    Compute the matching score between two skill level vectors.
-
-    This function compares two arrays representing skill levels (e.g., from a learner and a job/course)
-    and calculates how well `level1` matches `level2`.
-    Only skills that are required (non-zero in `level2`) are considered.
-
-    The matching score is computed as:
-    - For each required skill (non-zero in `level2`), take the ratio of the learner's skill to the required level,
-      capped at 1 (since minimum is taken).
-    - Sum the ratios and normalize by the number of required skills.
+    Compute the matching score between two skill vectors in binary case.
+    Only checks if skills exist (non-zero) in both vectors, regardless of their levels.
 
     Args:
-        level1 (np.ndarray): An array of skill levels for the first entity (e.g., learner).
-        level2 (np.ndarray): An array of required skill levels for the second entity (e.g., job or course).
+        level1 (np.ndarray): An array of skills for the first entity (e.g., learner).
+        level2 (np.ndarray): An array of skills for the second entity (e.g., job or course).
 
     Returns:
-        float: A matching score between 0 and 1, where 1 indicates a perfect match.
+        float: A matching score between 0 and 1, where:
+            - 1 means all required skills (non-zero in level2) exist in level1
+            - 0 means none of the required skills exist in level1
+            - Values in between represent the proportion of required skills that exist
     """
-    # get the minimum of the two arrays
-    minimum_skill = np.minimum(level1, level2) #ouput : length of nb of skills (46)
-
-    # get the indices of the non-zero elements of the job/course skill levels
-    nonzero_indices = np.nonzero(level2)[0]
-
-    # divide the minimum by the job/course skill levels at non-zero indices
-    matching = minimum_skill[nonzero_indices] / level2[nonzero_indices]
-
-    # sum the result and divide by the number of non-zero job/course skill levels
-    matching = np.sum(matching) / np.count_nonzero(level2)
-
-    return matching
+    # Get indices of non-zero elements in both arrays
+    skills1 = set(np.nonzero(level1)[0])
+    skills2 = set(np.nonzero(level2)[0])
+    
+    # If no skills are required, return 1
+    if not skills2:
+        return 1.0
+        
+    # Count how many skills exist in level1
+    matching_skills = len(skills1.intersection(skills2))
+    
+    # Return the proportion of required skills that exist
+    return matching_skills / len(skills2)
 
 
 

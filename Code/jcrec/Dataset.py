@@ -313,7 +313,9 @@ class Dataset: #modified class : skip expertise
 
         # get the index of the non zero elements in the learner array
         skills = np.nonzero(learner)[0]
+        # 08/05/2025 : sửa hàm này với công thức cô pereira
 
+        
         for skill in skills:
             if skill in self.jobs_inverted_index:
                 jobs_subset.update(self.jobs_inverted_index[skill])
