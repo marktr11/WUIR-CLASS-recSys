@@ -12,17 +12,18 @@ def matching(level1, level2):
 
     Returns:
         float: A matching score between 0 and 1, where:
-            - 1 means all required skills (non-zero in level2) exist in level1
-            - 0 means none of the required skills exist in level1
+            - 1.0 means all required skills exist in level1 (perfect match)
+            - 0.0 means none of the required skills exist in level1
             - Values in between represent the proportion of required skills that exist
+            - If level2 has no skills (all zeros), returns -1.0 (invalid case)
     """
     # Get indices of non-zero elements in both arrays
     skills1 = set(np.nonzero(level1)[0])
     skills2 = set(np.nonzero(level2)[0])
     
-    # If no skills are required, return 1
+    # If no skills are required/provided, return -1.0 (invalid case)
     if not skills2:
-        return 1.0
+        return -1.0
         
     # Count how many skills exist in level1
     matching_skills = len(skills1.intersection(skills2))
@@ -41,15 +42,16 @@ def learner_job_matching(learner, job):
     return matching(learner, job)
 
 
-def learner_course_required_matching(learner, course):
+## this function is not used in binary case
+# def learner_course_required_matching(learner, course):
 
-    required_course = course[0] #required skills
+#     required_course = course[0] #required skills
 
-    # check if the course has no required skills and return 1
-    if not np.any(required_course): # not( true if at least one element is not 0 )
-        return 1.0
+#     # check if the course has no required skills and return 1
+#     if not np.any(required_course): # not( true if at least one element is not 0 )
+#         return 1.0
 
-    return matching(learner, required_course)
+#     return matching(learner, required_course)
 
 
 def learner_course_provided_matching(learner, course):

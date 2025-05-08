@@ -179,8 +179,10 @@ class Dataset: #modified class : skip expertise
         # we update the learners numpy array with the correct number of rows
         self.learners = self.learners[:index]
 
-    def load_jobs(self,replace_unk=3): #### Function modified
-        """Load the jobs from the file specified in the config and store it in the class attribute
+
+    def load_jobs(self,replace_unk=3):
+        """Load the jobs from the file specified in the config and store it in the class attribute.
+        Only jobs with at least one required skill are kept.
 
         Args:
             replace_unk (int, optional): The value to replace the unknown mastery levels. Defaults to 3.
@@ -190,22 +192,31 @@ class Dataset: #modified class : skip expertise
         self.jobs_index = dict()
         index = 0
         for job_id, job in jobs.items():
-            self.jobs_index[index] = job_id
-            self.jobs_index[job_id] = index
-
             if self.config["feature"] == "original":
                 job_skills = self.get_avg_skills(job, replace_unk)
-            else :
-                job_base_skills = self.get_base_skills(job) #remove expertise
+            else:
+                job_base_skills = self.get_base_skills(job)
                 job_skills = {skill: 1 for skill in job_base_skills}
-            
+
+            # Skip jobs with no required skills
+            if not job_skills:
+                continue
 
             for skill, level in job_skills.items():
                 self.jobs[index][skill] = level
-            index += 1
 
-    def load_courses(self,replace_unk=2): #### Function modified
-        """Load the courses from the file specified in the config and store it in the class attribute
+            # Only add jobs that have at least one required skill
+            if self.validate_job(self.jobs[index]):
+                self.jobs_index[index] = job_id
+                self.jobs_index[job_id] = index
+                index += 1
+
+        # Update jobs array with only valid jobs
+        self.jobs = self.jobs[:index]
+
+    def load_courses(self,replace_unk=2):
+        """Load the courses from the file specified in the config and store it in the class attribute.
+        Only courses with at least one provided skill are kept.
 
         Args:
             replace_unk (int, optional): The value to replace the unknown mastery levels. Defaults to 2.
@@ -215,36 +226,41 @@ class Dataset: #modified class : skip expertise
         self.courses_index = dict()
         index = 0
         for course_id, course in courses.items():
-            # if the course does not provide any skills, we skip it
-            #process required skills
+            # Skip courses with no provided skills
             if "to_acquire" not in course:
                 continue
 
-            self.courses_index[course_id] = index
-            self.courses_index[index] = course_id
-
             if self.config["feature"] == "original":
                 provided_skills = self.get_avg_skills(course["to_acquire"], replace_unk)
-            else :
-                provided_base_skills = self.get_base_skills(course["to_acquire"]) #remove expertise
+            else:
+                provided_base_skills = self.get_base_skills(course["to_acquire"])
                 provided_skills = {skill: 1 for skill in provided_base_skills}
 
-            for skill,level in provided_skills.items():
+            # Skip courses with no provided skills
+            if not provided_skills:
+                continue
+
+            for skill, level in provided_skills.items():
                 self.courses[index][1][skill] = level
-            
-            #process required skills
+
+            # Process required skills if they exist
             if "required" in course:
                 if self.config["feature"] == "original":
-                   required_skills = self.get_avg_skills(course["to_acquire"], replace_unk)
-                else :
-                   required_base_skills = self.get_base_skills(course["required"]) #remove expertise
-                   required_skills = {skill: 1 for skill in required_base_skills}
-                   
-                for skill,level in required_skills.items():
+                    required_skills = self.get_avg_skills(course["to_acquire"], replace_unk)
+                else:
+                    required_base_skills = self.get_base_skills(course["required"])
+                    required_skills = {skill: 1 for skill in required_base_skills}
+
+                for skill, level in required_skills.items():
                     self.courses[index][0][skill] = level
 
-            index += 1
-        # update the courses numpy array with the correct number of rows
+            # Only add courses that have at least one provided skill
+            if self.validate_course(self.courses[index]):
+                self.courses_index[course_id] = index
+                self.courses_index[index] = course_id
+                index += 1
+
+        # Update courses array with only valid courses
         self.courses = self.courses[:index]
 
     def get_subsample(self):
@@ -315,7 +331,7 @@ class Dataset: #modified class : skip expertise
         skills = np.nonzero(learner)[0]
         # 08/05/2025 : sửa hàm này với công thức cô pereira
 
-        
+
         for skill in skills:
             if skill in self.jobs_inverted_index:
                 jobs_subset.update(self.jobs_inverted_index[skill])
@@ -340,7 +356,7 @@ class Dataset: #modified class : skip expertise
         avg_applicable_jobs /= len(self.learners)
         return avg_applicable_jobs
 
-    def get_all_enrollable_courses(self, learner):
+    def get_all_enrollable_courses(self, learner): #not used for REINFORCE
         """Get all the enrollable courses for a learner in binary case.
         Since required skills are handled in make_course_consistent(), we only need to check
         if the course provides any new skills that the learner doesn't have.
@@ -357,7 +373,7 @@ class Dataset: #modified class : skip expertise
                 learner, course
             )
             # Only check if the course provides any new skills
-            if provided_matching < 1.0:  # Learner doesn't have all skills the course provides
+            if provided_matching < 1.0 and provided_matching > 0.0:  # Learner doesn't have all skills the course provides and the course provides at least one skill
                 enrollable_courses[i] = course
         return enrollable_courses
 
