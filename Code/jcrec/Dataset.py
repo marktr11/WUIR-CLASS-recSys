@@ -397,3 +397,60 @@ class Dataset: #modified class : skip expertise
             attractiveness += self.get_learner_attractiveness(learner)
         attractiveness /= len(self.learners)
         return attractiveness
+
+    def get_learner_base_skills(self, learner):
+        """Get the base skills (indices) that a learner has.
+        
+        Args:
+            learner (np.ndarray): Learner's skill vector
+            
+        Returns:
+            set: Set of skill indices that the learner has (value = 1)
+        """
+        return set(np.nonzero(learner)[0])
+
+    def get_learner_missing_skills(self, learner):
+        """Get the distinct missing skills that a learner needs to be eligible for jobs.
+        
+        Args:
+            learner (np.ndarray): Learner's skill vector
+            
+        Returns:
+            set: Set of distinct skill indices that the learner needs to learn
+                 to be eligible for jobs
+        """
+        # Get learner's current skills
+        learner_skills = self.get_learner_base_skills(learner)
+        
+        # Get all required skills from jobs
+        job_required_skills = set()
+        for job in self.jobs:
+            job_skills = set(np.nonzero(job)[0])
+            job_required_skills.update(job_skills)
+        
+        # Get missing skills (skills required by jobs but not possessed by learner)
+        missing_skills = job_required_skills - learner_skills
+        
+        return missing_skills
+
+    def get_learner_missing_skills_with_frequency(self, learner):
+        """Get the missing skills with their frequency in job requirements.
+        
+        Args:
+            learner (np.ndarray): Learner's skill vector
+            
+        Returns:
+            dict: Dictionary mapping skill indices to their frequency in job requirements
+        """
+        # Get learner's current skills
+        learner_skills = self.get_learner_base_skills(learner)
+        
+        # Count frequency of each skill in job requirements
+        skill_frequency = defaultdict(int)
+        for job in self.jobs:
+            job_skills = set(np.nonzero(job)[0])
+            for skill in job_skills:
+                if skill not in learner_skills:
+                    skill_frequency[skill] += 1
+        
+        return dict(skill_frequency)

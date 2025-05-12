@@ -101,6 +101,100 @@ class CourseRecEnv(gym.Env):
         info = self._get_info()
         return observation, info
 
+    def calculate_course_metrics(self, learner, course):
+        """Calculate N1, N2, N3 metrics for a course recommendation.
+        
+        Args:
+            learner (np.ndarray): Current learner's skill vector
+            course (np.ndarray): Course's skills array [required, provided]
+            
+        Returns:
+            tuple: (N1, N2, N3) where:
+                - N1: number of missing skills resolved by this course
+                - N2: remaining missing skills after learning this course
+                - N3: number of skills provided by the course that are not in missing skills
+        """
+        # Get missing skills before updating
+        missing_skills_before = self.dataset.get_learner_missing_skills(learner)
+        
+        # Get skills provided by the course
+        course_provided_skills = set(np.nonzero(course[1])[0])
+        
+        # Calculate skills after learning the course, update state
+        updated_skills = np.maximum(learner, course[1])
+        
+        # Get missing skills after updating
+        missing_skills_after = self.dataset.get_learner_missing_skills(updated_skills)
+        
+        # Calculate N1: number of missing skills resolved by this course
+        N1 = len(missing_skills_before - missing_skills_after)
+        
+        # Calculate N2: remaining missing skills after learning this course
+        N2 = len(missing_skills_after)
+        
+        # Calculate N3: number of skills provided by the course that are not in missing skills
+        N3 = len(course_provided_skills - missing_skills_before)
+        
+        return N1, N2, N3
+
+    def calculate_achievable_goals(self, learner, course):
+        """Calculate the set of goals that a course allows the learner to achieve.
+        
+        Args:
+            learner (np.ndarray): Current learner's skill vector (Ba)
+            course (np.ndarray): Course's skills array [required, provided] (φ)
+            
+        Returns:
+            tuple: (initial_goals, new_goals) where:
+                - initial_goals: number of jobs applicable with initial skills (Ba |= g)
+                - new_goals: number of new jobs that become applicable after learning the course (Ba ∪ φ |= g)
+        """
+        # Calculate initial goals (jobs applicable with current skills)
+        initial_goals = self.dataset.get_nb_applicable_jobs(learner, threshold=self.threshold)
+        
+        # Calculate skills after learning the course
+        updated_skills = np.maximum(learner, course[1])
+        
+        # Calculate new goals (jobs applicable after learning the course)
+        new_goals = self.dataset.get_nb_applicable_jobs(updated_skills, threshold=self.threshold)
+        
+        return initial_goals, new_goals
+
+    def calculate_utility(self, learner, course):
+        """Calculate U(φ) = 1/(|Ga|+1) * [|E(φ)| + N1(φ)/(N1(φ)+N2(φ)+N3(φ)) * (N3(φ)+1)]
+        
+        Args:
+            learner (np.ndarray): Current learner's skill vector
+            course (np.ndarray): Course's skills array [required, provided]
+            
+        Returns:
+            float: The utility value U(φ)
+        """
+        # Calculate N1, N2, N3 metrics
+        N1, N2, N3 = self.calculate_course_metrics(learner, course)
+        
+        # Calculate achievable goals
+        initial_goals, new_goals = self.calculate_achievable_goals(learner, course)
+        
+        # Calculate |Ga|: number of jobs not applicable with initial skills
+        total_jobs = len(self.dataset.jobs)
+        Ga = total_jobs - initial_goals
+        
+        # Calculate |E(φ)|: number of new jobs that become applicable
+        E_phi = new_goals - initial_goals
+        
+        # Calculate denominator for N1 fraction
+        denominator = N1 + N2 + N3
+        if denominator == 0:  # Avoid division by zero
+            N1_fraction = 0
+        else:
+            N1_fraction = N1 / denominator
+        
+        # Calculate U(φ)
+        utility = (1 / (Ga + 1)) * (E_phi + N1_fraction * (N3 + 1))
+        
+        return utility
+
     def step(self, action):
         """Method required by the gym environment. It performs the action in the environment and returns the new observation, the reward, whether the episode is terminated and additional information.
 
@@ -124,12 +218,30 @@ class CourseRecEnv(gym.Env):
             info = self._get_info()
             return observation, reward, terminated, False, info
 
+        # Calculate N1, N2, N3 metrics
+        N1, N2, N3 = self.calculate_course_metrics(learner, course)
+        
+        # Calculate achievable goals
+        initial_goals, new_goals = self.calculate_achievable_goals(learner, course)
+        
+        # Calculate utility
+        utility = self.calculate_utility(learner, course)
+        
         # Accept the course: update learner's skills using element-wise max between current and provided skills
         self._agent_skills = np.maximum(self._agent_skills, course[1])
+        
+        # Add metrics to info for potential use in reward calculation
+        info = self._get_info()
+        # info["resolved_missing_skills"] = N1
+        # info["remaining_missing_skills"] = N2
+        # info["extra_skills_provided"] = N3
+        # info["initial_goals"] = initial_goals
+        # info["new_goals"] = new_goals
+        # info["achieved_goals"] = new_goals - initial_goals
+        info["utility"] = utility
 
         observation = self._get_obs()
-        info = self._get_info()
-        reward = info["nb_applicable_jobs"] # nb_applicable_jobs
+        reward = info["nb_applicable_jobs"] + info["utility"]# nb_applicable_jobs
         # Track number of recommended courses and check if max (k) is reached
         self.nb_recommendations += 1
         terminated = self.nb_recommendations == self.k
