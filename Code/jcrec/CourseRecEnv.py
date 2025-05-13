@@ -246,7 +246,8 @@ class EvaluateCallback(BaseCallback):
         Custom evaluation method called at every step of training by the callback system.
 
         This method performs model evaluation every `eval_freq` steps using the current policy on a fixed evaluation environment (`self.eval_env`).
-        It calculates the average number of applicable jobs (reward signal) across all learners in the dataset, prints it, and logs the result to a file.
+        It calculates the average number of applicable jobs across all learners in the dataset, prints it, and logs the result to a file.
+        Note: This always uses nb_applicable_jobs for evaluation, regardless of the reward type used in training.
 
         Returns:
             bool: Always returns True to indicate that training should continue.
@@ -269,9 +270,9 @@ class EvaluateCallback(BaseCallback):
                     obs, reward, terminated, truncated, info = self.eval_env.step(action)  # Step in environment
                     done = terminated or truncated  # Properly compute done flag
 
-                    # Only update the reward if the recommendation was valid
+                    # Only update if the recommendation was valid and use nb_applicable_jobs
                     if reward != -1:
-                        tmp_avg_jobs = reward
+                        tmp_avg_jobs = info["nb_applicable_jobs"]
 
                 avg_jobs += tmp_avg_jobs  # Add learner's result to total
 

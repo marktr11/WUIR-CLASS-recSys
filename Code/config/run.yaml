@@ -16,7 +16,7 @@ total_steps: 500000
 eval_freq: 1000
 nb_runs: 1
 seed: 42
-baseline : true #skip-expertise-only model (baseline)
+baseline : false #skip-expertise-only model (baseline)
 feature:  "Usefulness-as-Rwd"  
 
 #Purpose 1: compare skip-expertise-only model (baseline) with skip-expertise-Usefulness model 
