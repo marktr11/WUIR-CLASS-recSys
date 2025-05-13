@@ -16,13 +16,8 @@ total_steps: 500000
 eval_freq: 1000
 nb_runs: 1
 seed: 42
-original : true # use original model
-feature:  "skip-expertise-Usefulness"  
+baseline : true #skip-expertise-only model (baseline)
+feature:  "Usefulness-as-Rwd"  
 
-#Purpose 1: The current experiments primarily focus on using the make_courses_consistent function, 
-#making the exp_feature variable unnecessary.
-#Action 1: Remove the exp_feature variable to streamline the code.
+#Purpose 1: compare skip-expertise-only model (baseline) with skip-expertise-Usefulness model 
 
-#Purpose 2: Restructure variables in the config.yaml file for improved clarity and flexibility.
-#Action 2: Introduce a Boolean variable named original and a separate feature variable 
-#to store different experiment configurations.

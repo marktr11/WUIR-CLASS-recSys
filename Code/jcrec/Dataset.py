@@ -155,11 +155,9 @@ class Dataset: #modified class : skip expertise
         # fill the numpy array with the learners skill proficiency levels from the json file
         for learner_id, learner in learners.items():
 
-            if self.config["original"]:
-                learner_skills = self.get_avg_skills(learner, replace_unk)
-            else :
-                learner_base_skills = self.get_base_skills(learner) #remove expertise
-                learner_skills = {skill: 1 for skill in learner_base_skills}
+
+            learner_base_skills = self.get_base_skills(learner) #remove expertise
+            learner_skills = {skill: 1 for skill in learner_base_skills}
             
 
             # if the number of skills is greater than the max_learner_skills, we skip the learner
@@ -194,12 +192,8 @@ class Dataset: #modified class : skip expertise
             self.jobs_index[index] = job_id
             self.jobs_index[job_id] = index
 
-            if self.config["original"]:
-                job_skills = self.get_avg_skills(job, replace_unk)
-            else:
-                job_base_skills = self.get_base_skills(job)
-                job_skills = {skill: 1 for skill in job_base_skills}
-
+            job_base_skills = self.get_base_skills(job)
+            job_skills = {skill: 1 for skill in job_base_skills}
 
             for skill, level in job_skills.items():
                 self.jobs[index][skill] = level
@@ -227,22 +221,18 @@ class Dataset: #modified class : skip expertise
             self.courses_index[index] = course_id
 
 
-            if self.config["original"]:
-                provided_skills = self.get_avg_skills(course["to_acquire"], replace_unk)
-            else:
-                provided_base_skills = self.get_base_skills(course["to_acquire"]) #remove expertise
-                provided_skills = {skill: 1 for skill in provided_base_skills}
+
+            provided_base_skills = self.get_base_skills(course["to_acquire"]) #remove expertise
+            provided_skills = {skill: 1 for skill in provided_base_skills}
 
             for skill, level in provided_skills.items():
                 self.courses[index][1][skill] = level
 
             # Process required skills if they exist
             if "required" in course:
-                if self.config["original"]:
-                    required_skills = self.get_avg_skills(course["required"], replace_unk)
-                else:
-                    required_base_skills = self.get_base_skills(course["required"])
-                    required_skills = {skill: 1 for skill in required_base_skills}
+
+                required_base_skills = self.get_base_skills(course["required"])
+                required_skills = {skill: 1 for skill in required_base_skills}
 
                 for skill, level in required_skills.items():
                     self.courses[index][0][skill] = level
@@ -292,19 +282,13 @@ class Dataset: #modified class : skip expertise
             for skill_id in range(len(self.skills)):
                 required_level = course[0][skill_id]
                 provided_level = course[1][skill_id]
-                if self.config["original"]:
-                    if provided_level != 0 and provided_level <= required_level:
-                        if provided_level == 1:
-                            course[0][skill_id] = 0
-                        else:
-                            course[0][skill_id] = provided_level - 1
-                else:
-                    # Case 1: Course both requires and provides the skill
-                    if provided_level > 0 and required_level > 0:
-                        course[0][skill_id] = 0
-                    # Case 2: Course requires but doesn't provide the skill (inconsistent case)
-                    elif required_level > 0 and provided_level == 0:
-                        course[0][skill_id] = 0
+
+                # Case 1: Course both requires and provides the skill
+                if provided_level > 0 and required_level > 0:
+                    course[0][skill_id] = 0
+                # Case 2: Course requires but doesn't provide the skill (inconsistent case)
+                elif required_level > 0 and provided_level == 0:
+                    course[0][skill_id] = 0
 
                 
 
@@ -336,7 +320,7 @@ class Dataset: #modified class : skip expertise
             if skill in self.jobs_inverted_index:
                 jobs_subset.update(self.jobs_inverted_index[skill])
         for job_id in jobs_subset:
-            matching = matchings.learner_job_matching(learner, self.jobs[job_id], self.config["original"])
+            matching = matchings.learner_job_matching(learner, self.jobs[job_id])
             if matching >= threshold:
                 nb_applicable_jobs += 1
         return nb_applicable_jobs

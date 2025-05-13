@@ -11,9 +11,9 @@ from CourseRecEnv import CourseRecEnv, EvaluateCallback
 
 class Reinforce:
     def __init__(
-        self, dataset, model, k, threshold, run, total_steps=1000, eval_freq=100, feature = "skip-expertise-Usefulness", original = False
+        self, dataset, model, k, threshold, run, total_steps=1000, eval_freq=100, feature = "skip-expertise-Usefulness", baseline = False
     ):  
-        self.original = original
+        self.baseline = baseline
         self.dataset = dataset
         self.model_name = model
         self.k = k
@@ -23,13 +23,14 @@ class Reinforce:
         self.eval_freq = eval_freq
         self.feature = feature
         # Create the training and evaluation environments
-        self.train_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k, original = self.original)
-        self.eval_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k, original = self.original)
+        self.train_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k, baseline = self.baseline)
+        self.eval_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k, baseline = self.baseline)
         self.get_model()
-        if self.original: #original model
+        if self.baseline: #baseline model
             self.all_results_filename = (
                 "all_"
                 + self.model_name
+                + "_skip-expertise_"
                 + "_nbskills_"
                 + str(len(self.dataset.skills))
                 + "_k_"
@@ -41,6 +42,7 @@ class Reinforce:
             self.final_results_filename = (
                 "final_"
                 + self.model_name
+                + "_skip-expertise_"
                 + "_nbskills_"
                 + str(len(self.dataset.skills))
                 + "_k_"

@@ -12,8 +12,8 @@ import matchings
 
 class CourseRecEnv(gym.Env):
     # The CourseRecEnv class is a gym environment that simulates the recommendation of courses to learners. It is used to train the Reinforce model.
-    def __init__(self, dataset, threshold=0.8, k=3, original=False):
-        self.original = original
+    def __init__(self, dataset, threshold=0.8, k=3, baseline=False):
+        self.baseline = baseline
         self.dataset = dataset 
         self.nb_skills = len(dataset.skills) # 46 skills
         self.mastery_levels = [
@@ -200,41 +200,30 @@ class CourseRecEnv(gym.Env):
         course = self.dataset.courses[action]
         learner = self._agent_skills
 
-        if self.original:
-            # Original case: use the same logic as the old code
-            required_matching = matchings.learner_course_required_matching(learner, course)
-            provided_matching = matchings.learner_course_provided_matching(learner, course, self.original)
-            if required_matching < self.threshold or provided_matching >= 1.0:
-                observation = self._get_obs()
-                reward = -1
-                terminated = True
-                info = self._get_info()
-                return observation, reward, terminated, False, info
-
+        # Skip-expertise case: use new metrics and utility
+        provided_matching = matchings.learner_course_provided_matching(learner, course)
+        if provided_matching == 1.0:
+            observation = self._get_obs()
+            reward = -1
+            terminated = True
+            info = self._get_info()
+            return observation, reward, terminated, False, info
+        
+        if self.baseline : #baseline model
             self._agent_skills = np.maximum(self._agent_skills, course[1])
             observation = self._get_obs()
             info = self._get_info()
             reward = info["nb_applicable_jobs"]
-        else:
-            # Skip-expertise-Usefulness case: use new metrics and utility
-            provided_matching = matchings.learner_course_provided_matching(learner, course, self.original)
-            if provided_matching == 1.0:
-                observation = self._get_obs()
-                reward = -1
-                terminated = True
-                info = self._get_info()
-                return observation, reward, terminated, False, info
-
+        else: # skip-expertise-Usefulness-as-Rwd model
             # Calculate metrics for skip-expertise-Usefulness
-            N1, N2, N3 = self.calculate_course_metrics(learner, course)
-            initial_goals, new_goals = self.calculate_achievable_goals(learner, course)
             utility = self.calculate_utility(learner, course)
             
             self._agent_skills = np.maximum(self._agent_skills, course[1])
             observation = self._get_obs()
             info = self._get_info()
             info["utility"] = utility
-            reward = info["nb_applicable_jobs"] + info["utility"]
+            reward = info["utility"]  #1sp exp : substitute for nb_applicable_jobs
+                                      #2sp exp : add nb_applicable_jobs with utility
 
         self.nb_recommendations += 1
         terminated = self.nb_recommendations == self.k

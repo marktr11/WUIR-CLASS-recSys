@@ -39,14 +39,12 @@ def main():
     # --- MLflow: experiment and run ---
     mlflow.set_tracking_uri("http://127.0.0.1:8080")
 
-    if config["original"]:
-        mlflow.set_experiment("original")
-    else:
-        mlflow.set_experiment(f"{config['feature']}")
+    mlflow.set_experiment("SKIP-EXPERTISE-EXP1")
+
 
     for run in range(config["nb_runs"]):
-        if config["original"]:
-            run_name = f"{config['model']}_Original_k_{config['k']}_total_steps_{config['total_steps']}"
+        if config["baseline"]:
+            run_name = f"{config['model']}_baseline_k_{config['k']}_total_steps_{config['total_steps']}"
         else:
             run_name = f"{config['model']}_{config['feature']}_k_{config['k']}_total_steps_{config['total_steps']}"
 
@@ -59,8 +57,8 @@ def main():
             mlflow.log_param("model", config["model"])
             mlflow.log_param("k_recommendations", config["k"])
             mlflow.log_param("threshold", config["threshold"])
-            if config["original"]:
-                mlflow.log_param("feature", "original") 
+            if config["baseline"]:
+                mlflow.log_param("feature", "baseline") 
             else:
                 mlflow.log_param("feature", config["feature"]) 
             mlflow.log_param("level_3_taxonomy", config["level_3"])
@@ -90,8 +88,8 @@ def main():
                 recommendation_method(config["k"], run)
             # Otherwise, we use the Reinforce class, described in Reinforce.py
             else:
-                if config["original"] :
-                    print("feature: Original")
+                if config["baseline"]: 
+                    print("feature: baseline")
                     print("-------------------------------------------")
                 else: 
                     print(f"feature: {config['feature']}")
@@ -105,7 +103,7 @@ def main():
                     config["total_steps"],
                     config["eval_freq"],
                     config["feature"],
-                    config["original"],
+                    config["baseline"],
                     
                 )
                 recommender.reinforce_recommendation()
