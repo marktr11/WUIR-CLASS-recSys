@@ -73,11 +73,11 @@ def learner_course_required_matching(learner, course):
     return matching_ori(learner, required_course)
 
 
-def learner_course_provided_matching(learner, course,feature):
+def learner_course_provided_matching(learner, course, original=False):
 
     provided_course = course[1] #provided skills
     
-    if feature == "original":
+    if original:
         return matching_ori(learner, provided_course)
     else:
         return matching(learner, provided_course)

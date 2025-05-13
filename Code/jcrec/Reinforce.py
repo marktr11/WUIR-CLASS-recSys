@@ -11,7 +11,7 @@ from CourseRecEnv import CourseRecEnv, EvaluateCallback
 
 class Reinforce:
     def __init__(
-        self, dataset, model, k, threshold, run, total_steps=1000, eval_freq=100, feature = "skip-expertise", original = False
+        self, dataset, model, k, threshold, run, total_steps=1000, eval_freq=100, feature = "skip-expertise-Usefulness", original = False
     ):  
         self.original = original
         self.dataset = dataset
@@ -23,12 +23,8 @@ class Reinforce:
         self.eval_freq = eval_freq
         self.feature = feature
         # Create the training and evaluation environments
-        if self.original: #original model
-            self.train_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k, original = self.original)
-            self.eval_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k, original = self.original)
-        else: # feature model 
-            self.train_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k, original = self.original)
-            self.eval_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k, original = self.original)
+        self.train_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k, original = self.original)
+        self.eval_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k, original = self.original)
         self.get_model()
         if self.original: #original model
             self.all_results_filename = (

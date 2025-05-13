@@ -155,7 +155,7 @@ class Dataset: #modified class : skip expertise
         # fill the numpy array with the learners skill proficiency levels from the json file
         for learner_id, learner in learners.items():
 
-            if self.config["feature"] == "original":
+            if self.config["original"]:
                 learner_skills = self.get_avg_skills(learner, replace_unk)
             else :
                 learner_base_skills = self.get_base_skills(learner) #remove expertise
@@ -194,7 +194,7 @@ class Dataset: #modified class : skip expertise
             self.jobs_index[index] = job_id
             self.jobs_index[job_id] = index
 
-            if self.config["feature"] == "original":
+            if self.config["original"]:
                 job_skills = self.get_avg_skills(job, replace_unk)
             else:
                 job_base_skills = self.get_base_skills(job)
@@ -227,7 +227,7 @@ class Dataset: #modified class : skip expertise
             self.courses_index[index] = course_id
 
 
-            if self.config["feature"] == "original":
+            if self.config["original"]:
                 provided_skills = self.get_avg_skills(course["to_acquire"], replace_unk)
             else:
                 provided_base_skills = self.get_base_skills(course["to_acquire"]) #remove expertise
@@ -238,7 +238,7 @@ class Dataset: #modified class : skip expertise
 
             # Process required skills if they exist
             if "required" in course:
-                if self.config["feature"] == "original":
+                if self.config["original"]:
                     required_skills = self.get_avg_skills(course["to_acquire"], replace_unk)
                 else:
                     required_base_skills = self.get_base_skills(course["required"])
@@ -292,7 +292,7 @@ class Dataset: #modified class : skip expertise
             for skill_id in range(len(self.skills)):
                 required_level = course[0][skill_id]
                 provided_level = course[1][skill_id]
-                if self.config["feature"] == "original":
+                if self.config["original"]:
                     if provided_level != 0 and provided_level <= required_level:
                         if provided_level == 1:
                             course[0][skill_id] = 0
@@ -331,14 +331,12 @@ class Dataset: #modified class : skip expertise
 
         # get the index of the non zero elements in the learner array
         skills = np.nonzero(learner)[0]
-        # 08/05/2025 : sửa hàm này với công thức cô pereira
-
 
         for skill in skills:
             if skill in self.jobs_inverted_index:
                 jobs_subset.update(self.jobs_inverted_index[skill])
         for job_id in jobs_subset:
-            matching = matchings.learner_job_matching(learner, self.jobs[job_id], self.config["feature"])
+            matching = matchings.learner_job_matching(learner, self.jobs[job_id], self.config["original"])
             if matching >= threshold:
                 nb_applicable_jobs += 1
         return nb_applicable_jobs

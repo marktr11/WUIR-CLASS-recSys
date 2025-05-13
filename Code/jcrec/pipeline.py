@@ -40,12 +40,12 @@ def main():
     mlflow.set_tracking_uri("http://127.0.0.1:8080")
 
     if config["original"]:
-        mlflow.set_experiment("Original")
+        mlflow.set_experiment("original")
     else:
         mlflow.set_experiment(f"{config['feature']}")
 
     for run in range(config["nb_runs"]):
-        if config["Original"]:
+        if config["original"]:
             run_name = f"{config['model']}_Original_k_{config['k']}_total_steps_{config['total_steps']}"
         else:
             run_name = f"{config['model']}_{config['feature']}_k_{config['k']}_total_steps_{config['total_steps']}"
@@ -102,6 +102,7 @@ def main():
                     config["total_steps"],
                     config["eval_freq"],
                     config["feature"],
+                    config["original"],
                     
                 )
                 recommender.reinforce_recommendation()
