@@ -39,18 +39,16 @@ def main():
     # --- MLflow: experiment and run ---
     mlflow.set_tracking_uri("http://127.0.0.1:8080")
 
-
-    if config["feature2"] != "None":
-       mlflow.set_experiment(f"{config['feature']}_{config['feature2']}")
+    if config["original"]:
+        mlflow.set_experiment("Original")
     else:
-       mlflow.set_experiment(f"{config['feature']}")
+        mlflow.set_experiment(f"{config['feature']}")
 
     for run in range(config["nb_runs"]):
-      
-        if config["feature2"] != "None":
-           run_name = f"{config['model']}_{config['feature']}_{config['feature2']}_k_{config['k']}_total_steps_{config['total_steps']}"
+        if config["Original"]:
+            run_name = f"{config['model']}_Original_k_{config['k']}_total_steps_{config['total_steps']}"
         else:
-           run_name = f"{config['model']}_{config['feature']}_k_{config['k']}_total_steps_{config['total_steps']}"
+            run_name = f"{config['model']}_{config['feature']}_k_{config['k']}_total_steps_{config['total_steps']}"
 
 
         with mlflow.start_run(run_name=run_name):
@@ -61,8 +59,7 @@ def main():
             mlflow.log_param("model", config["model"])
             mlflow.log_param("k_recommendations", config["k"])
             mlflow.log_param("threshold", config["threshold"])
-            mlflow.log_param("feature_1", config["feature"]) 
-            mlflow.log_param("feature_2", config["feature2"]) 
+            mlflow.log_param("feature", config["feature"]) 
             mlflow.log_param("level_3_taxonomy", config["level_3"])
             mlflow.log_param("seed", config["seed"])
             if config.get("model") in ["ppo", "dqn"]:
@@ -90,11 +87,11 @@ def main():
                 recommendation_method(config["k"], run)
             # Otherwise, we use the Reinforce class, described in Reinforce.py
             else:
-                if config["feature"] == "skip-expertise":
-                    print("feature: skip-expertise")
+                if config["original"] :
+                    print("feature: Original")
                     print("-------------------------------------------")
                 else: 
-                    print("feature: Original")
+                    print(f"feature: {config['feature']}")
                     print("-------------------------------------------")
                 recommender = Reinforce(
                     dataset,

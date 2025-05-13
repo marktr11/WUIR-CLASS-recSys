@@ -50,12 +50,12 @@ def matching_ori(level1, level2): # use for original case : mastery level
 
 
 
-def learner_job_matching(learner, job, feature):
+def learner_job_matching(learner, job, original=False):
 
     # check if one of the arrays is empty
     if not (np.any(job) and np.any(learner)):
         return 0
-    if feature == "original":
+    if original:
         return matching_ori(learner, job)
     else:
         return matching(learner, job)

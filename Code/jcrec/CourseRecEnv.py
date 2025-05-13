@@ -12,9 +12,8 @@ import matchings
 
 class CourseRecEnv(gym.Env):
     # The CourseRecEnv class is a gym environment that simulates the recommendation of courses to learners. It is used to train the Reinforce model.
-    def __init__(self, dataset, threshold=0.8, k=3, feature2="None", feature="original"):
-        self.feature2 = feature2
-        self.feature = feature
+    def __init__(self, dataset, threshold=0.8, k=3, original=False):
+        self.original = original
         self.dataset = dataset 
         self.nb_skills = len(dataset.skills) # 46 skills
         self.mastery_levels = [
@@ -210,17 +209,17 @@ class CourseRecEnv(gym.Env):
         learner = self._agent_skills # Current learner skill vector (agent state)
 
         
-        if self.feature == "original":
-            required_matching = matchings.learner_course_required_matching(learner, course, )
-            provided_matching = matchings.learner_course_provided_matching(learner, course, self.feature)
+        if self.original:
+            required_matching = matchings.learner_course_required_matching(learner, course )
+            provided_matching = matchings.learner_course_provided_matching(learner, course, self.original)
             if required_matching < self.threshold or provided_matching >= 1.0:
                 observation = self._get_obs()
                 reward = -1
                 terminated = True
                 info = self._get_info()
                 return observation, reward, terminated, False, info
-        else: 
-            provided_matching = matchings.learner_course_provided_matching(learner, course, self.feature)
+        else: # skip-expertise-Usefulness
+            provided_matching = matchings.learner_course_provided_matching(learner, course, self.original)
         
             # In binary case, we only check if the course provides any new skills
             # If all required skills are 0 (removed in make_course_consistent), we only need to check provided_matching
@@ -254,11 +253,11 @@ class CourseRecEnv(gym.Env):
         info["utility"] = utility
 
         observation = self._get_obs()
-        if self.feature2 != "None":
+        if self.original:
+            reward = info["nb_applicable_jobs"]# nb_applicable_jobs
+        else:
             # Reward is the number of applicable jobs after learning the course
             reward = info["nb_applicable_jobs"] + info["utility"]
-        else:
-            reward = info["nb_applicable_jobs"]# nb_applicable_jobs
         # Track number of recommended courses and check if max (k) is reached
         self.nb_recommendations += 1
         terminated = self.nb_recommendations == self.k

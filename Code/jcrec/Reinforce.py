@@ -11,8 +11,9 @@ from CourseRecEnv import CourseRecEnv, EvaluateCallback
 
 class Reinforce:
     def __init__(
-        self, dataset, model, k, threshold, run, total_steps=1000, eval_freq=100, feature = "skip-expertise",feature2 = "None"
-    ):
+        self, dataset, model, k, threshold, run, total_steps=1000, eval_freq=100, feature = "skip-expertise", original = False
+    ):  
+        self.original = original
         self.dataset = dataset
         self.model_name = model
         self.k = k
@@ -21,39 +22,15 @@ class Reinforce:
         self.total_steps = total_steps
         self.eval_freq = eval_freq
         self.feature = feature
-        self.feature2 = feature2
         # Create the training and evaluation environments
-        if feature2 != "None": # if apply usefulness of info 
-            self.train_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k, feature2=self.feature2, feature=self.feature)
-            self.eval_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k, feature2=self.feature2, feature=self.feature)
-        else:
-            self.train_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k)
-            self.eval_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k)
+        if self.original: #original model
+            self.train_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k, original = self.original)
+            self.eval_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k, original = self.original)
+        else: # feature model 
+            self.train_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k, original = self.original)
+            self.eval_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k, original = self.original)
         self.get_model()
-        if self.feature == "skip-expertise":
-                self.all_results_filename = (
-                "all_"
-                + self.model_name
-                +"_skip-expertise"
-                + "_nbskills_"
-                + str(len(self.dataset.skills))
-                + "_k_"
-                + str(self.k)
-                + "_run_"
-                + str(run)
-                + ".txt")
-                self.final_results_filename = (
-                    "final_"
-                    + self.model_name
-                    + "_skip-expertise"
-                    + "_nbskills_"
-                    + str(len(self.dataset.skills))
-                    + "_k_"
-                    + str(self.k)
-                    + "_run_"
-                    + str(self.run)
-                    + ".json")
-        else : ##### original
+        if self.original: #original model
             self.all_results_filename = (
                 "all_"
                 + self.model_name
@@ -76,6 +53,33 @@ class Reinforce:
                 + str(self.run)
                 + ".json"
             )
+                
+        else : ##### feature model
+            self.all_results_filename = (
+                "all_"
+                + self.model_name
+                +"_"
+                + self.feature
+                + "_nbskills_"
+                + str(len(self.dataset.skills))
+                + "_k_"
+                + str(self.k)
+                + "_run_"
+                + str(run)
+                + ".txt")
+            self.final_results_filename = (
+                "final_"
+                + self.model_name
+                + "_"
+                + self.feature
+                + "_nbskills_"
+                + str(len(self.dataset.skills))
+                + "_k_"
+                + str(self.k)
+                + "_run_"
+                + str(self.run)
+                + ".json")
+            
 
         self.eval_callback = EvaluateCallback(
             self.eval_env,
