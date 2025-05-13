@@ -239,7 +239,7 @@ class Dataset: #modified class : skip expertise
             # Process required skills if they exist
             if "required" in course:
                 if self.config["original"]:
-                    required_skills = self.get_avg_skills(course["to_acquire"], replace_unk)
+                    required_skills = self.get_avg_skills(course["required"], replace_unk)
                 else:
                     required_base_skills = self.get_base_skills(course["required"])
                     required_skills = {skill: 1 for skill in required_base_skills}

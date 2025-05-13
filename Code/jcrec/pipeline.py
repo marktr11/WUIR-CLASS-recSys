@@ -59,7 +59,10 @@ def main():
             mlflow.log_param("model", config["model"])
             mlflow.log_param("k_recommendations", config["k"])
             mlflow.log_param("threshold", config["threshold"])
-            mlflow.log_param("feature", config["feature"]) 
+            if config["original"]:
+                mlflow.log_param("feature", "original") 
+            else:
+                mlflow.log_param("feature", config["feature"]) 
             mlflow.log_param("level_3_taxonomy", config["level_3"])
             mlflow.log_param("seed", config["seed"])
             if config.get("model") in ["ppo", "dqn"]:

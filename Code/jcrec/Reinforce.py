@@ -27,17 +27,17 @@ class Reinforce:
         self.eval_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k, original = self.original)
         self.get_model()
         if self.original: #original model
-            self.all_results_filename = (
-                "all_"
-                + self.model_name
-                + "_nbskills_"
-                + str(len(self.dataset.skills))
-                + "_k_"
-                + str(self.k)
-                + "_run_"
-                + str(run)
-                + ".txt"
-            )
+            # self.all_results_filename = (
+            #     "all_"
+            #     + self.model_name
+            #     + "_nbskills_"
+            #     + str(len(self.dataset.skills))
+            #     + "_k_"
+            #     + str(self.k)
+            #     + "_run_"
+            #     + str(run)
+            #     + ".txt"
+            # )
             self.final_results_filename = (
                 "final_"
                 + self.model_name
@@ -51,18 +51,18 @@ class Reinforce:
             )
                 
         else : ##### feature model
-            self.all_results_filename = (
-                "all_"
-                + self.model_name
-                +"_"
-                + self.feature
-                + "_nbskills_"
-                + str(len(self.dataset.skills))
-                + "_k_"
-                + str(self.k)
-                + "_run_"
-                + str(run)
-                + ".txt")
+            # self.all_results_filename = (
+            #     "all_"
+            #     + self.model_name
+            #     +"_"
+            #     + self.feature
+            #     + "_nbskills_"
+            #     + str(len(self.dataset.skills))
+            #     + "_k_"
+            #     + str(self.k)
+            #     + "_run_"
+            #     + str(run)
+            #     + ".txt")
             self.final_results_filename = (
                 "final_"
                 + self.model_name
