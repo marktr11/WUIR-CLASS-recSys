@@ -48,9 +48,9 @@ def main():
     for run in range(config["nb_runs"]):
       
         if config["feature2"] != "None":
-           run_name = f"{config['model']}_{config['feature']}_{config['feature2']}_{config['exp_feature']}_k_{config['k']}_total_steps_{config['total_steps']}"
+           run_name = f"{config['model']}_{config['feature']}_{config['feature2']}_k_{config['k']}_total_steps_{config['total_steps']}"
         else:
-           run_name = f"{config['model']}_{config['feature']}_{config['exp_feature']}_k_{config['k']}_total_steps_{config['total_steps']}"
+           run_name = f"{config['model']}_{config['feature']}_k_{config['k']}_total_steps_{config['total_steps']}"
 
 
         with mlflow.start_run(run_name=run_name):
@@ -105,7 +105,7 @@ def main():
                     config["total_steps"],
                     config["eval_freq"],
                     config["feature"],
-                    config["exp_feature"],
+                    
                 )
                 recommender.reinforce_recommendation()
 

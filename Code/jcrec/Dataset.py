@@ -34,8 +34,7 @@ class Dataset: #modified class : skip expertise
         self.load_jobs() #modify
         self.load_courses() #modify
         self.get_subsample()
-        if self.config["exp_feature"] == "courses-consistency":
-           self.make_course_consistent()
+        self.make_course_consistent()
         
 
 
@@ -285,16 +284,29 @@ class Dataset: #modified class : skip expertise
             self.courses_index.update({v: k for k, v in self.courses_index.items()})
 
     def make_course_consistent(self):
-        """Make the courses consistent by removing the skills that are provided and required at the same time"""
+        """Make the courses consistent by removing the skills that are provided and required at the same time.
+        In binary case (only care about having/not having skills), if a course both requires and provides a skill,
+        we remove the requirement since the learner can learn that skill from the course.
+        Also remove requirements for skills that are not provided by the course (inconsistent case)."""
         for course in self.courses:
             for skill_id in range(len(self.skills)):
                 required_level = course[0][skill_id]
                 provided_level = course[1][skill_id]
-                if provided_level != 0 and provided_level <= required_level:
-                    if provided_level == 1:
+                if self.config["feature"] == "original":
+                    if provided_level != 0 and provided_level <= required_level:
+                        if provided_level == 1:
+                            course[0][skill_id] = 0
+                        else:
+                            course[0][skill_id] = provided_level - 1
+                else:
+                    # Case 1: Course both requires and provides the skill
+                    if provided_level > 0 and required_level > 0:
                         course[0][skill_id] = 0
-                    else:
-                        course[0][skill_id] = provided_level - 1
+                    # Case 2: Course requires but doesn't provide the skill (inconsistent case)
+                    elif required_level > 0 and provided_level == 0:
+                        course[0][skill_id] = 0
+
+                
 
     def get_jobs_inverted_index(self):
         """Get the inverted index for the jobs. The inverted index is a dictionary that maps the skill to the jobs that require it"""
@@ -326,7 +338,7 @@ class Dataset: #modified class : skip expertise
             if skill in self.jobs_inverted_index:
                 jobs_subset.update(self.jobs_inverted_index[skill])
         for job_id in jobs_subset:
-            matching = matchings.learner_job_matching(learner, self.jobs[job_id])
+            matching = matchings.learner_job_matching(learner, self.jobs[job_id], self.config["feature"])
             if matching >= threshold:
                 nb_applicable_jobs += 1
         return nb_applicable_jobs

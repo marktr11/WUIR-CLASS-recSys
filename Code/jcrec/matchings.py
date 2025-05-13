@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def matching(level1, level2):
+def matching(level1, level2): # use for binary case : 0 or 1
     """
     Compute the matching score between two skill vectors in binary case.
     Only checks if skills exist (non-zero) in both vectors, regardless of their levels.
@@ -31,34 +31,57 @@ def matching(level1, level2):
     # Return the proportion of required skills that exist
     return matching_skills / len(skills2)
 
+def matching_ori(level1, level2): # use for original case : mastery level
+
+    # get the minimum of the two arrays
+    minimum_skill = np.minimum(level1, level2)
+
+    # get the indices of the non zero elements of the job skill levels
+    nonzero_indices = np.nonzero(level2)[0]
+
+    # divide the minimum by the job skill levels on the non zero indices
+    matching = minimum_skill[nonzero_indices] / level2[nonzero_indices]
+
+    # sum the result and divide by the number of non zero job skill levels
+    matching = np.sum(matching) / np.count_nonzero(level2)
+
+    return matching
 
 
-def learner_job_matching(learner, job):
+
+
+def learner_job_matching(learner, job, feature):
 
     # check if one of the arrays is empty
     if not (np.any(job) and np.any(learner)):
         return 0
-
-    return matching(learner, job)
-
-
-## this function is not used in binary case
-# def learner_course_required_matching(learner, course):
-
-#     required_course = course[0] #required skills
-
-#     # check if the course has no required skills and return 1
-#     if not np.any(required_course): # not( true if at least one element is not 0 )
-#         return 1.0
-
-#     return matching(learner, required_course)
+    if feature == "original":
+        return matching_ori(learner, job)
+    else:
+        return matching(learner, job)
 
 
-def learner_course_provided_matching(learner, course):
+# this function is not used in binary case, only in original case
+def learner_course_required_matching(learner, course):
+
+    required_course = course[0] #required skills
+
+    # check if the course has no required skills and return 1
+    if not np.any(required_course): # not( true if at least one element is not 0 )
+        return 1.0
+
+    return matching_ori(learner, required_course)
+
+
+def learner_course_provided_matching(learner, course,feature):
 
     provided_course = course[1] #provided skills
+    
+    if feature == "original":
+        return matching_ori(learner, provided_course)
+    else:
+        return matching(learner, provided_course)
 
-    return matching(learner, provided_course)
 
 
 def learner_course_matching(learner, course):
