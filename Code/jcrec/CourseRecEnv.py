@@ -197,20 +197,12 @@ class CourseRecEnv(gym.Env):
         return utility
 
     def step(self, action):
-        """Method required by the gym environment. It performs the action in the environment and returns the new observation, the reward, whether the episode is terminated and additional information.
+        course = self.dataset.courses[action]
+        learner = self._agent_skills
 
-        Args:
-            action (int): the course to be recommended
-
-        Returns:
-            tuple: the new observation, the reward, whether the episode is terminated, additional information
-        """
-        course = self.dataset.courses[action] # 2d array, [0]:required skills; [1]:provided skills
-        learner = self._agent_skills # Current learner skill vector (agent state)
-
-        
         if self.original:
-            required_matching = matchings.learner_course_required_matching(learner, course )
+            # Original case: use the same logic as the old code
+            required_matching = matchings.learner_course_required_matching(learner, course)
             provided_matching = matchings.learner_course_provided_matching(learner, course, self.original)
             if required_matching < self.threshold or provided_matching >= 1.0:
                 observation = self._get_obs()
@@ -218,47 +210,32 @@ class CourseRecEnv(gym.Env):
                 terminated = True
                 info = self._get_info()
                 return observation, reward, terminated, False, info
-        else: # skip-expertise-Usefulness
+
+            self._agent_skills = np.maximum(self._agent_skills, course[1])
+            observation = self._get_obs()
+            info = self._get_info()
+            reward = info["nb_applicable_jobs"]
+        else:
+            # Skip-expertise-Usefulness case: use new metrics and utility
             provided_matching = matchings.learner_course_provided_matching(learner, course, self.original)
-        
-            # In binary case, we only check if the course provides any new skills
-            # If all required skills are 0 (removed in make_course_consistent), we only need to check provided_matching
-            if provided_matching == 1.0:  # Learner already has all skills the course provides
+            if provided_matching == 1.0:
                 observation = self._get_obs()
                 reward = -1
                 terminated = True
                 info = self._get_info()
                 return observation, reward, terminated, False, info
 
-        # Calculate N1, N2, N3 metrics
-        N1, N2, N3 = self.calculate_course_metrics(learner, course)
-        
-        # Calculate achievable goals
-        initial_goals, new_goals = self.calculate_achievable_goals(learner, course)
-        
-        # Calculate utility
-        utility = self.calculate_utility(learner, course)
-        
-        # Accept the course: update learner's skills using element-wise max between current and provided skills
-        self._agent_skills = np.maximum(self._agent_skills, course[1])
-        
-        # Add metrics to info for potential use in reward calculation
-        info = self._get_info()
-        # info["resolved_missing_skills"] = N1
-        # info["remaining_missing_skills"] = N2
-        # info["extra_skills_provided"] = N3
-        # info["initial_goals"] = initial_goals
-        # info["new_goals"] = new_goals
-        # info["achieved_goals"] = new_goals - initial_goals
-        info["utility"] = utility
-
-        observation = self._get_obs()
-        if self.original:
-            reward = info["nb_applicable_jobs"]# nb_applicable_jobs
-        else:
-            # Reward is the number of applicable jobs after learning the course
+            # Calculate metrics for skip-expertise-Usefulness
+            N1, N2, N3 = self.calculate_course_metrics(learner, course)
+            initial_goals, new_goals = self.calculate_achievable_goals(learner, course)
+            utility = self.calculate_utility(learner, course)
+            
+            self._agent_skills = np.maximum(self._agent_skills, course[1])
+            observation = self._get_obs()
+            info = self._get_info()
+            info["utility"] = utility
             reward = info["nb_applicable_jobs"] + info["utility"]
-        # Track number of recommended courses and check if max (k) is reached
+
         self.nb_recommendations += 1
         terminated = self.nb_recommendations == self.k
 
