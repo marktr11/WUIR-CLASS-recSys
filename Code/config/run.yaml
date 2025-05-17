@@ -10,8 +10,8 @@ nb_cvs: -1 #Number of resumes to use (set to -1 to use all)
 max_cv_skills: 15  # Maximum number of skills per resume
 nb_jobs: 100
 threshold: 0.8
-k: 1
-model: ppo
+k: 3
+model: dqn
 total_steps: 500000
 eval_freq: 1000
 nb_runs: 1

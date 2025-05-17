@@ -142,13 +142,13 @@ class CourseRecEnv(gym.Env):
         """Calculate the set of goals that a course allows the learner to achieve.
         
         Args:
-            learner (np.ndarray): Current learner's skill vector (Ba)
+            learner (np.ndarray): Current learner's skill vector (B)
             course (np.ndarray): Course's skills array [required, provided] (φ)
             
         Returns:
             tuple: (initial_goals, new_goals) where:
-                - initial_goals: number of jobs applicable with initial skills (Ba |= g)
-                - new_goals: number of new jobs that become applicable after learning the course (Ba ∪ φ |= g)
+                - initial_goals: number of jobs applicable with initial skills (B |= g)
+                - new_goals: number of new jobs that become applicable after learning the course (B ∪ φ |= g)
         """
         # Calculate initial goals (jobs applicable with current skills)
         initial_goals = self.dataset.get_nb_applicable_jobs(learner, threshold=self.threshold)
@@ -162,7 +162,7 @@ class CourseRecEnv(gym.Env):
         return initial_goals, new_goals
 
     def calculate_utility(self, learner, course):
-        """Calculate U(φ) = 1/(|Ga|+1) * [|E(φ)| + N1(φ)/(N1(φ)+N2(φ)+N3(φ)) * (N3(φ)+1)]
+        """Calculate U(φ) = 1/(|G|+1) * [|E(φ)| + N1(φ)/(N1(φ)+N2(φ)+(N3(φ)/ (N3(φ)+1)))]
         
         Args:
             learner (np.ndarray): Current learner's skill vector
@@ -177,7 +177,7 @@ class CourseRecEnv(gym.Env):
         # Calculate achievable goals
         initial_goals, new_goals = self.calculate_achievable_goals(learner, course)
         
-        # Calculate |Ga|: number of jobs not applicable with initial skills
+        # Calculate |G|: number of jobs not applicable with initial skills
         total_jobs = len(self.dataset.jobs)
         Ga = total_jobs - initial_goals
         
@@ -185,14 +185,14 @@ class CourseRecEnv(gym.Env):
         E_phi = new_goals - initial_goals
         
         # Calculate denominator for N1 fraction
-        denominator = N1 + N2 + N3
+        denominator = N1 + N2 + (N3/N3+1)
         if denominator == 0:  # Avoid division by zero
             N1_fraction = 0
         else:
             N1_fraction = N1 / denominator
         
         # Calculate U(φ)
-        utility = (1 / (Ga + 1)) * (E_phi + N1_fraction * (N3 + 1))
+        utility = (1 / (Ga + 1)) * (E_phi + N1_fraction)
         
         return utility
 
