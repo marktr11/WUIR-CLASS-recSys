@@ -185,7 +185,7 @@ class CourseRecEnv(gym.Env):
         E_phi = new_goals - initial_goals
         
         # Calculate denominator for N1 fraction
-        denominator = N1 + N2 + (N3/N3+1)
+        denominator = N1 + N2 + (N3/(N3+1))
         if denominator == 0:  # Avoid division by zero
             N1_fraction = 0
         else:
