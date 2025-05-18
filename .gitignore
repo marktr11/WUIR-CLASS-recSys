@@ -58,5 +58,5 @@ mlruns/
 wandb/
 
 # EDA folder and its contents
-eda/
-eda/**/*
+Code/eda/
+Code/eda/**/*
