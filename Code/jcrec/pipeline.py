@@ -11,14 +11,47 @@ from Reinforce import Reinforce
 
 
 def create_and_print_dataset(config):
-    """Create and print the dataset."""
+    """Create and initialize the dataset for the recommendation system.
+    
+    This function creates a Dataset instance using the provided configuration
+    and prints its summary information.
+    
+    Args:
+        config (dict): Configuration dictionary containing dataset parameters
+        
+    Returns:
+        Dataset: Initialized dataset object containing learners, jobs, and courses
+    """
     dataset = Dataset(config)
     print(dataset)
     return dataset
 
 
 def main():
-    """Run the recommender system based on the provided model and parameters."""
+    """Main entry point for the recommendation system pipeline.
+    
+    This function:
+    1. Parses command line arguments to get the configuration file path
+    2. Loads the configuration from YAML file
+    3. Sets up MLflow experiment tracking
+    4. Runs the specified recommendation model for the configured number of iterations
+    5. Logs parameters, metrics, and artifacts to MLflow
+    
+    The pipeline supports three types of recommendation models:
+    - Greedy: Simple greedy approach for course recommendations
+    - Optimal: Optimal solution using mathematical optimization
+    - Reinforce: Reinforcement learning-based approach (DQN, A2C, or PPO)
+    
+    For each run, it:
+    - Creates a new MLflow run with appropriate naming
+    - Logs all relevant parameters and configuration
+    - Initializes the dataset
+    - Runs the selected recommendation model
+    - Logs results and artifacts
+    
+    Command line arguments:
+        --config: Path to the configuration file (default: "Code/config/run.yaml")
+    """
     parser = argparse.ArgumentParser(description="Run recommender models.")
 
     parser.add_argument(

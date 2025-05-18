@@ -10,9 +10,46 @@ from CourseRecEnv import CourseRecEnv, EvaluateCallback
 
 
 class Reinforce:
+    """Reinforcement Learning-based Course Recommendation System.
+    
+    This class implements a reinforcement learning approach for course recommendations
+    using various RL algorithms from stable-baselines3. The system can operate in two modes:
+    1. Baseline: Uses number of applicable jobs as reward
+    2. Skip-expertise: Uses a utility function that considers both skill acquisition
+       and job applicability
+    
+    The system trains an RL agent to recommend courses to learners with the goal of
+    maximizing their job opportunities. The agent learns a policy that maps learner
+    skill profiles to course recommendations.
+    
+    Attributes:
+        dataset: Dataset object containing learners, jobs, and courses data
+        model_name (str): Name of the RL algorithm to use ('dqn', 'a2c', or 'ppo')
+        k (int): Maximum number of course recommendations per learner
+        threshold (float): Minimum matching score required for job applicability
+        run (int): Run identifier for experiment tracking
+        total_steps (int): Total number of training steps
+        eval_freq (int): Frequency of model evaluation during training
+        feature (str): Feature type for reward calculation
+        baseline (bool): Whether to use baseline reward (True) or utility-based reward (False)
+    """
+    
     def __init__(
         self, dataset, model, k, threshold, run, total_steps=1000, eval_freq=100, feature = "skip-expertise-Usefulness", baseline = False
     ):  
+        """Initialize the reinforcement learning recommendation system.
+        
+        Args:
+            dataset: Dataset object containing the recommendation system data
+            model (str): Name of the RL algorithm ('dqn', 'a2c', or 'ppo')
+            k (int): Maximum number of course recommendations per learner
+            threshold (float): Minimum matching score for job applicability
+            run (int): Run identifier for experiment tracking
+            total_steps (int, optional): Total training steps. Defaults to 1000.
+            eval_freq (int, optional): Evaluation frequency. Defaults to 100.
+            feature (str, optional): Feature type for reward. Defaults to "skip-expertise-Usefulness".
+            baseline (bool, optional): Whether to use baseline reward. Defaults to False.
+        """
         self.baseline = baseline
         self.dataset = dataset
         self.model_name = model
@@ -86,7 +123,11 @@ class Reinforce:
         )
 
     def get_model(self):
-        """Sets the model to be used for the recommendation. The model is from stable-baselines3 and is chosen based on the model_name attribute."""
+        """Initialize the reinforcement learning model.
+        
+        Sets up the specified RL algorithm (DQN, A2C, or PPO) with default parameters.
+        The model is configured to use a Multi-Layer Perceptron (MLP) policy.
+        """
         # on training env
         if self.model_name == "dqn":
             self.model = DQN(env=self.train_env, verbose=0, policy="MlpPolicy")
@@ -99,14 +140,30 @@ class Reinforce:
         """Updates the learner's profile with the skills and levels of the course.
 
         Args:
-            learner (list): list of skills and mastery level of the learner
-            course (list): list of required (resp. provided) skills and mastery level of the course
+            learner (np.ndarray): Current learner's skill vector
+            course (np.ndarray): Course's skills array [required, provided]
+            
+        Returns:
+            np.ndarray: Updated learner's skill vector
         """
         learner = np.maximum(learner, course[1])
         return learner
 
     def reinforce_recommendation(self):
-        """Train and evaluates the reinforcement learning model to make recommendations for every learner in the dataset. The results are saved in a json file."""
+        """Train and evaluate the RL model for course recommendations.
+        
+        This method:
+        1. Calculates initial metrics (attractiveness and applicable jobs)
+        2. Trains the RL model using the training environment
+        3. Evaluates the model on all learners
+        4. Generates course recommendations for each learner
+        5. Updates learner profiles based on recommendations
+        6. Calculates final metrics and saves results
+        
+        The results are saved in two files:
+        - A text file with intermediate evaluation results
+        - A JSON file with final metrics and recommendations
+        """
         results = dict()
 
         avg_l_attrac_debut = self.dataset.get_avg_learner_attractiveness() #debut

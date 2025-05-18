@@ -9,7 +9,18 @@ from collections import defaultdict
 import matchings
 
 
-class Dataset: #modified class : skip expertise
+class Dataset: #modified class
+    """Dataset class for the course recommendation system.
+    
+    This class handles data loading, processing, and analysis for the recommendation system.
+    It manages three main types of data:
+    - Learner profiles and their skills
+    - Job requirements and their required skills
+    - Course information including required and provided skills
+    
+    The class implements the No-Mastery-Levels approach, where skills are represented
+    in a binary format (0/1) instead of using mastery levels.
+    """
     # The Dataset class is used to load and store the data of the recommendation problem
     def __init__(self, config):
         self.config = config
@@ -361,30 +372,106 @@ class Dataset: #modified class : skip expertise
                 enrollable_courses[i] = course
         return enrollable_courses
 
-    def get_learner_attractiveness(self, learner):
-        """Get the attractiveness of a learner
-
+    def get_learner_acquired_skills(self, learner):
+        """Get the skills that a learner currently possesses.
+        
         Args:
-            learner (list): list of skills and mastery level of the learner
-
+            learner (np.ndarray): Learner's skill vector where 1 indicates
+                                possession of a skill and 0 indicates absence.
+            
         Returns:
-            int: number of jobs that require at least one of the learner's skills
+            set: Set of skill indices that the learner has acquired (value = 1)
+        """
+        return set(np.nonzero(learner)[0])
+
+    def get_learner_missing_skills(self, learner):
+        """Identify skills that a learner needs to acquire to be eligible for jobs.
+        
+        This function analyzes the gap between a learner's current skills and
+        the skills required by available jobs. It helps identify which skills
+        the learner should acquire to improve their job eligibility.
+        
+        Args:
+            learner (np.ndarray): Learner's skill vector where 1 indicates
+                                possession of a skill and 0 indicates absence.
+            
+        Returns:
+            set: Set of distinct skill indices that the learner needs to learn
+                 to be eligible for jobs. These are skills required by jobs but
+                 not currently possessed by the learner.
+        """
+        # Get learner's current skills
+        learner_skills = self.get_learner_acquired_skills(learner)
+        
+        # Get all required skills from jobs
+        job_required_skills = set()
+        for job in self.jobs:
+            job_skills = set(np.nonzero(job)[0])
+            job_required_skills.update(job_skills)
+        
+        # Get missing skills (skills required by jobs but not possessed by learner)
+        missing_skills = job_required_skills - learner_skills
+        
+        return missing_skills
+
+    def get_learner_missing_skills_with_frequency(self, learner):
+        """Analyze the frequency of missing skills in job requirements.
+        
+        This function extends get_learner_missing_skills by adding frequency analysis.
+        It helps prioritize which missing skills are most in demand in the job market.
+        
+        Args:
+            learner (np.ndarray): Learner's skill vector where 1 indicates
+                                possession of a skill and 0 indicates absence.
+            
+        Returns:
+            dict: Dictionary mapping skill indices to their frequency in job requirements.
+                 Higher frequency indicates higher demand for that skill in the job market.
+        """
+        # Get learner's current skills
+        learner_skills = self.get_learner_acquired_skills(learner)
+        
+        # Count frequency of each skill in job requirements
+        skill_frequency = defaultdict(int)
+        for job in self.jobs:
+            job_skills = set(np.nonzero(job)[0])
+            for skill in job_skills:
+                if skill not in learner_skills:
+                    skill_frequency[skill] += 1
+        
+        return dict(skill_frequency)
+
+    def get_learner_attractiveness(self, learner):
+        """Calculate a learner's attractiveness in the job market.
+        
+        This function measures how many jobs require at least one of the
+        learner's current skills. It provides a basic measure of the learner's
+        marketability based on their current skill set.
+        
+        Args:
+            learner (np.ndarray): Learner's skill vector where 1 indicates
+                                possession of a skill and 0 indicates absence.
+            
+        Returns:
+            int: Number of jobs that require at least one of the learner's skills.
         """
         attractiveness = 0
-
-        # get the index of the non zero elements in the learner array
         skills = np.nonzero(learner)[0]
-
+        
         for skill in skills:
             if skill in self.jobs_inverted_index:
                 attractiveness += len(self.jobs_inverted_index[skill])
         return attractiveness
 
     def get_avg_learner_attractiveness(self):
-        """Get the average attractiveness of all the learners
-
+        """Calculate the average attractiveness across all learners.
+        
+        This function provides a measure of the overall marketability of
+        the learner population based on their current skill sets.
+        
         Returns:
-            float: the average attractiveness of the learners
+            float: The average number of jobs that require at least one
+                  of each learner's skills.
         """
         attractiveness = 0
         for learner in self.learners:
@@ -402,49 +489,3 @@ class Dataset: #modified class : skip expertise
             set: Set of skill indices that the learner has (value = 1)
         """
         return set(np.nonzero(learner)[0])
-
-    def get_learner_missing_skills(self, learner):
-        """Get the distinct missing skills that a learner needs to be eligible for jobs.
-        
-        Args:
-            learner (np.ndarray): Learner's skill vector
-            
-        Returns:
-            set: Set of distinct skill indices that the learner needs to learn
-                 to be eligible for jobs
-        """
-        # Get learner's current skills
-        learner_skills = self.get_learner_base_skills(learner)
-        
-        # Get all required skills from jobs
-        job_required_skills = set()
-        for job in self.jobs:
-            job_skills = set(np.nonzero(job)[0])
-            job_required_skills.update(job_skills)
-        
-        # Get missing skills (skills required by jobs but not possessed by learner)
-        missing_skills = job_required_skills - learner_skills
-        
-        return missing_skills
-
-    def get_learner_missing_skills_with_frequency(self, learner):
-        """Get the missing skills with their frequency in job requirements.
-        
-        Args:
-            learner (np.ndarray): Learner's skill vector
-            
-        Returns:
-            dict: Dictionary mapping skill indices to their frequency in job requirements
-        """
-        # Get learner's current skills
-        learner_skills = self.get_learner_base_skills(learner)
-        
-        # Count frequency of each skill in job requirements
-        skill_frequency = defaultdict(int)
-        for job in self.jobs:
-            job_skills = set(np.nonzero(job)[0])
-            for skill in job_skills:
-                if skill not in learner_skills:
-                    skill_frequency[skill] += 1
-        
-        return dict(skill_frequency)
