@@ -45,7 +45,7 @@ class CourseRecEnv(gym.Env):
         baseline (bool): Whether to use baseline reward (True) or utility-based reward (False)
     """
     
-    def __init__(self, dataset, threshold=0.8, k=3, baseline=False):
+    def __init__(self, dataset, threshold=0.8, k=3, baseline=False, feature="Usefulness-of-info-as-Rwd"):
         """Initialize the course recommendation environment.
         
         Args:
@@ -53,7 +53,9 @@ class CourseRecEnv(gym.Env):
             threshold (float, optional): Minimum matching score for job applicability. Defaults to 0.8.
             k (int, optional): Maximum number of course recommendations. Defaults to 3.
             baseline (bool, optional): Whether to use baseline reward. Defaults to False.
+            feature (str, optional): Feature to use for reward. Defaults to "Usefulness-of-info-as-Rwd".
         """
+        self.feature = feature
         self.baseline = baseline
         self.dataset = dataset 
         self.nb_skills = len(dataset.skills) # 46 skills

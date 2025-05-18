@@ -137,6 +137,7 @@ def main():
                     config["eval_freq"],
                     config["feature"],
                     config["baseline"],
+                    config["feature"],
                     
                 )
                 recommender.reinforce_recommendation()
