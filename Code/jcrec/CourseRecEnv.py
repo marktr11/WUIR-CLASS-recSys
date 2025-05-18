@@ -45,7 +45,7 @@ class CourseRecEnv(gym.Env):
         baseline (bool): Whether to use baseline reward (True) or utility-based reward (False)
     """
     
-    def __init__(self, dataset, threshold=0.8, k=3, baseline=False, feature="Usefulness-of-info-as-Rwd"):
+    def __init__(self, dataset, threshold=0.8, k=3, baseline=False, feature="Usefulness-as-Rwd"):
         """Initialize the course recommendation environment.
         
         Args:
@@ -53,7 +53,7 @@ class CourseRecEnv(gym.Env):
             threshold (float, optional): Minimum matching score for job applicability. Defaults to 0.8.
             k (int, optional): Maximum number of course recommendations. Defaults to 3.
             baseline (bool, optional): Whether to use baseline reward. Defaults to False.
-            feature (str, optional): Feature to use for reward. Defaults to "Usefulness-of-info-as-Rwd".
+            feature (str, optional): Feature to use for reward. Defaults to "Usefulness-as-Rwd".
         """
         self.feature = feature
         self.baseline = baseline
@@ -305,9 +305,9 @@ class CourseRecEnv(gym.Env):
             info = self._get_info()
             info["utility"] = utility
             
-            if self.feature == "Usefulness-of-info-as-Rwd":
+            if self.feature == "Usefulness-as-Rwd":
                 reward = info["utility"]  # Use utility as reward
-            elif self.feature == "Weighted-Usefulness-of-info-as-Rwd":
+            elif self.feature == "Weighted-Usefulness-as-Rwd":
                 reward = info["nb_applicable_jobs"] + info["utility"]  # Combine both metrics
             else:
                 raise ValueError(f"Unknown feature type: {self.feature}")
