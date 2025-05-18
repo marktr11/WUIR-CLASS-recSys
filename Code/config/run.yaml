@@ -1,18 +1,44 @@
-taxonomy_path: Data - Collection/Final/taxonomy.csv
-course_path: Data - Collection/Final/courses.json
-cv_path: Data - Collection/Final/resumes.json
-job_path: Data - Collection/Final/jobs.json
-mastery_levels_path: Data - Collection/Final/mastery_levels.json
-results_path: Code/results
-level_3: true
-nb_courses: 100
-nb_cvs: -1
-max_cv_skills: 15
-nb_jobs: 100
-threshold: 0.8
-k: 1
-model: ppo
-total_steps: 5000
-eval_freq: 1000
-nb_runs: 1
-seed: 42
+# File: run.yaml
+# Description: Configuration file for the course recommendation system
+# Purpose: Compare skip-expertise-only model (baseline) with skip-expertise-Usefulness model
+
+# Data Paths
+taxonomy_path: Data - Collection/Final/taxonomy.csv      # Path to skill taxonomy data
+course_path: Data - Collection/Final/courses.json        # Path to course data
+cv_path: Data - Collection/Final/resumes.json           # Path to learner profiles
+job_path: Data - Collection/Final/jobs.json             # Path to job listings
+mastery_levels_path: Data - Collection/Final/mastery_levels.json  # Path to skill mastery levels
+results_path: Code/results                              # Directory for storing results
+
+# Data Processing Parameters
+level_3: true                                          # Use third level of taxonomy (true) or fourth level (false)
+                                                       # True: fewer, more general skills
+                                                       # False: more specific skills
+
+# Dataset Size Parameters
+nb_courses: 100                                        # Number of courses to include in the dataset
+nb_cvs: -1                                            # Number of learner profiles to use (-1 for all)
+max_cv_skills: 15                                     # Maximum number of skills per learner profile
+nb_jobs: 100                                          # Number of jobs to include in the dataset
+
+# Model Parameters
+threshold: 0.8                                         # Minimum matching threshold for job eligibility
+k: 3                                                  # Number of course recommendations to generate
+model: ppo                                            # Reinforcement learning algorithm (PPO)
+total_steps: 500000                                   # Total training steps
+eval_freq: 1000                                       # Evaluation frequency during training
+nb_runs: 1                                            # Number of independent runs
+seed: 42                                              # Random seed for reproducibility
+
+# Model Configuration
+baseline: false                                        # Model type:
+                                                       # true: No-Mastery-Levels-only model (baseline)
+                                                       # false: UIR-No-Mastery-Levels model
+feature: "Usefulness-of-info-as-Rwd"                          # Feature type for non-baseline model 
+#options: "Usefulness-of-info-as-Rwd" or "Weighted-Usefulness-of-info-as-Rwd"
+
+# Purpose
+# This configuration is designed to compare two approaches:
+# 1. Baseline model: No-Mastery-Levels-only approach
+# 2. Enhanced model: UIR-No-Mastery-Levels with Usefulness as reward
+
