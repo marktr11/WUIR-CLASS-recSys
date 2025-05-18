@@ -260,7 +260,10 @@ class CourseRecEnv(gym.Env):
         This method:
         1. Recommends a course based on the action
         2. Updates the learner's skills if the course is valid
-        3. Calculates the reward based on the selected mode (baseline or utility)
+        3. Calculates the reward based on the selected mode:
+           - Baseline: Number of applicable jobs
+           - Usefulness-of-info-as-Rwd: Utility function value
+           - Weighted-Usefulness-of-info-as-Rwd: Number of applicable jobs + Utility
         4. Checks if the episode should terminate
         
         Args:
@@ -291,20 +294,24 @@ class CourseRecEnv(gym.Env):
             observation = self._get_obs()
             info = self._get_info()
             reward = info["nb_applicable_jobs"]
-        else: # skip-expertise-Usefulness-as-Rwd model
-            # Calculate metrics for skip-expertise-Usefulness
+        else: # No-Mastery-Levels Models
+            # Calculate Usefulness-of-info-as-Rwd
             utility = self.calculate_utility(learner, course)
             
             self._agent_skills = np.maximum(self._agent_skills, course[1])
             observation = self._get_obs()
             info = self._get_info()
             info["utility"] = utility
-            reward = info["utility"]  #1sp exp : substitute for nb_applicable_jobs
-                                      #2sp exp : add nb_applicable_jobs with utility
+            
+            if self.feature == "Usefulness-of-info-as-Rwd":
+                reward = info["utility"]  # Use utility as reward
+            elif self.feature == "Weighted-Usefulness-of-info-as-Rwd":
+                reward = info["nb_applicable_jobs"] + info["utility"]  # Combine both metrics
+            else:
+                raise ValueError(f"Unknown feature type: {self.feature}")
 
         self.nb_recommendations += 1
         terminated = self.nb_recommendations == self.k
-
 
         return observation, reward, terminated, False, info
 

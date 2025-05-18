@@ -34,8 +34,8 @@ seed: 42                                              # Random seed for reproduc
 baseline: false                                        # Model type:
                                                        # true: No-Mastery-Levels-only model (baseline)
                                                        # false: UIR-No-Mastery-Levels model
-feature: "Usefulness-as-Rwd"                          # Feature type for non-baseline model 
-#options: "Usefulness-as-Rwd" or "Weighted-Usefulness-as-Rwd"
+feature: "Usefulness-of-info-as-Rwd"                          # Feature type for non-baseline model 
+#options: "Usefulness-of-info-as-Rwd" or "Weighted-Usefulness-of-info-as-Rwd"
 
 # Purpose
 # This configuration is designed to compare two approaches:

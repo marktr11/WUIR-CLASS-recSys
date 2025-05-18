@@ -8,6 +8,8 @@ This system uses reinforcement learning to recommend courses to learners based o
 
 1. **Baseline Mode**: Uses number of applicable jobs as reward
 2. **No-Mastery-Levels Mode**: Uses a utility function that considers both skill acquisition and job applicability
+   - **Usefulness-of-info-as-Rwd**: Uses utility function as reward
+   - **Weighted-Usefulness-of-info-as-Rwd**: Combines number of applicable jobs with utility function
 
 ## Features
 
@@ -61,6 +63,24 @@ The system can be configured through `run.yaml` with parameters like:
 - Matching threshold
 - Training steps
 - Evaluation frequency
+- Feature type:
+  - "Usefulness-of-info-as-Rwd": Uses utility function as reward
+  - "Weighted-Usefulness-of-info-as-Rwd": Combines number of applicable jobs with utility
+
+## Reward Mechanisms
+
+The system supports three reward mechanisms:
+
+1. **Baseline Mode**:
+   - Reward = Number of applicable jobs
+
+2. **Usefulness-of-info-as-Rwd**:
+   - Reward = Utility function value
+   - Utility considers skill acquisition and job applicability
+
+3. **Weighted-Usefulness-of-info-as-Rwd**:
+   - Reward = Number of applicable jobs + Utility function value
+   - Combines immediate job eligibility with long-term skill development
 
 ## Evaluation
 
