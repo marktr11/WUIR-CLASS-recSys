@@ -57,6 +57,6 @@ logs/
 mlruns/
 wandb/
 
-
-#eda folder
+# EDA folder and its contents
 eda/
+eda/**/*
