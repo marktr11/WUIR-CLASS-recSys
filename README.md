@@ -6,10 +6,11 @@ A reinforcement learning-based course recommendation system that helps learners 
 
 This system uses reinforcement learning to recommend courses to learners based on their current skills and job market requirements. It operates in two modes:
 
-1. **Baseline Mode**: Uses number of applicable jobs as reward
-2. **No-Mastery-Levels Mode**: Uses a utility function that considers both skill acquisition and job applicability
-   - **Usefulness-of-info-as-Rwd**: Uses utility function as reward
-   - **Weighted-Usefulness-of-info-as-Rwd**: Combines number of applicable jobs with utility function
+1. **Baseline Model**: Uses number of applicable jobs as reward
+2. **Enhanced Reward Model**: Uses a utility function that considers both skill acquisition and job applicability
+   - **Usefulness-as-Rwd**: Uses utility function as reward
+   - **Weighted-Usefulness-as-Rwd**: Combines number of applicable jobs with utility function
+
 
 ## Features
 
