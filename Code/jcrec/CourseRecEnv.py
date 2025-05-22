@@ -45,7 +45,7 @@ class CourseRecEnv(gym.Env):
         baseline (bool): Whether to use baseline reward (True) or utility-based reward (False)
     """
     
-    def __init__(self, dataset, threshold=0.8, k=3, baseline=False, feature="Usefulness-as-Rwd"):
+    def __init__(self, dataset, threshold=0.8, k=3, baseline=False, feature="Usefulness-as-Rwd", beta1=0.5, beta2=0.5):
         """Initialize the course recommendation environment.
         
         Args:
@@ -54,9 +54,13 @@ class CourseRecEnv(gym.Env):
             k (int, optional): Maximum number of course recommendations. Defaults to 3.
             baseline (bool, optional): Whether to use baseline reward. Defaults to False.
             feature (str, optional): Feature to use for reward. Defaults to "Usefulness-as-Rwd".
+            beta1 (float, optional): Weight for number of applicable jobs in weighted reward. Defaults to 1.0.
+            beta2 (float, optional): Weight for utility in weighted reward. Defaults to 1.0.
         """
         self.feature = feature
         self.baseline = baseline
+        self.beta1 = beta1
+        self.beta2 = beta2
         self.dataset = dataset 
         self.nb_skills = len(dataset.skills) # 46 skills
         self.mastery_levels = [
@@ -154,8 +158,8 @@ class CourseRecEnv(gym.Env):
         """Calculate N1, N2, N3 metrics for a course recommendation.
         
         These metrics evaluate the effectiveness of a course recommendation:
-        - N1: Number of missing skills resolved by the course
-        - N2: Number of remaining missing skills after taking the course
+        - N1: Sum over all unachievable goals of the intersection between skills acquired after taking the course and missing skills for each goal
+        - N2: Sum over all unachievable goals of the remaining missing skills after taking the course
         - N3: Number of skills provided by the course that are not in missing skills
         
         Args:
@@ -165,26 +169,35 @@ class CourseRecEnv(gym.Env):
         Returns:
             tuple: (N1, N2, N3) metrics
         """
-        # Get missing skills before updating
-        missing_skills_before = self.dataset.get_learner_missing_skills(learner)
+        # Calculate skills after learning the course
+        cons_skills = np.maximum(learner, course[1])
+        cons_skills_set = set(np.nonzero(cons_skills)[0])
         
         # Get skills provided by the course
         course_provided_skills = set(np.nonzero(course[1])[0])
         
-        # Calculate skills after learning the course, update state
-        updated_skills = np.maximum(learner, course[1])
+        # Initialize N1 and N2
+        N1 = 0
+        N2 = 0
         
-        # Get missing skills after updating
-        missing_skills_after = self.dataset.get_learner_missing_skills(updated_skills)
+        # Calculate for each job
+        for job_id in range(len(self.dataset.jobs)):
+            # Get missing skills for this job before learning
+            missing_skills = self.dataset.get_learner_missing_skills(learner, job_id)
+            
+            # Check if this job is in Ga (unachievable goals)
+            if len(missing_skills) > 0:
+                # Calculate N1: intersection of acquired skills and missing skills
+                N1 += len(cons_skills_set.intersection(missing_skills))
+                
+                # Calculate N2: remaining missing skills after learning
+                N2 += len(missing_skills - cons_skills_set)
         
-        # Calculate N1: number of missing skills resolved by this course
-        N1 = len(missing_skills_before - missing_skills_after)
-        
-        # Calculate N2: remaining missing skills after learning this course
-        N2 = len(missing_skills_after)
-        
-        # Calculate N3: number of skills provided by the course that are not in missing skills
-        N3 = len(course_provided_skills - missing_skills_before)
+        # Calculate N3: number of skills provided by the course that are not in any missing skills
+        all_missing_skills = set()
+        for job_id in range(len(self.dataset.jobs)):
+            all_missing_skills.update(self.dataset.get_learner_missing_skills(learner, job_id))
+        N3 = len(course_provided_skills - all_missing_skills)
         
         return N1, N2, N3
 
@@ -308,7 +321,7 @@ class CourseRecEnv(gym.Env):
             if self.feature == "Usefulness-as-Rwd":
                 reward = info["utility"]  # Use utility as reward
             elif self.feature == "Weighted-Usefulness-as-Rwd":
-                reward = info["nb_applicable_jobs"] + info["utility"]  # Combine both metrics
+                reward = self.beta1 * info["nb_applicable_jobs"] + self.beta2 * info["utility"]  # Combine both metrics with weights
             else:
                 raise ValueError(f"Unknown feature type: {self.feature}")
 

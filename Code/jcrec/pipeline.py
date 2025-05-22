@@ -60,8 +60,33 @@ def main():
 
     args = parser.parse_args()
 
+    # First load initial config
     with open(args.config, "r") as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
+        initial_config = yaml.load(f, Loader=yaml.FullLoader)
+
+    # Run weight optimization if using weighted reward and weights are not in config
+    if initial_config.get("feature") == "Weighted-Usefulness-as-Rwd":
+        model_weights = initial_config.get("model_weights", {})
+        if initial_config["model"] not in model_weights:
+            print(f"\nOptimizing weights for {initial_config['model'].upper()}...")
+            from weight_optimization import optimize_weights
+            optimize_weights(args.config)
+            
+            # Reload config after weight optimization
+            with open(args.config, "r") as f:
+                config = yaml.load(f, Loader=yaml.FullLoader)
+        else:
+            config = initial_config
+            weights = model_weights[initial_config["model"]]
+            print(f"\nUsing existing weights for {initial_config['model'].upper()}: beta1={weights['beta1']}, beta2={weights['beta2']}")
+
+        # Get beta values for current model
+        model_weights = config.get("model_weights", {})
+        current_weights = model_weights.get(config["model"], {})
+        beta1 = current_weights.get("beta1")
+        beta2 = current_weights.get("beta2")
+    else:
+        config = initial_config
 
     model_classes = {
         "greedy": Greedy,
@@ -137,7 +162,8 @@ def main():
                     config["eval_freq"],
                     config["feature"],
                     config["baseline"],
-                    
+                    beta1,
+                    beta2
                 )
                 recommender.reinforce_recommendation()
 

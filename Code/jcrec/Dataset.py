@@ -384,33 +384,31 @@ class Dataset: #modified class
         """
         return set(np.nonzero(learner)[0])
 
-    def get_learner_missing_skills(self, learner):
-        """Identify skills that a learner needs to acquire to be eligible for jobs.
+    def get_learner_missing_skills(self, learner, job_id):
+        """Identify skills that a learner needs to acquire to be eligible for a specific job.
         
         This function analyzes the gap between a learner's current skills and
-        the skills required by available jobs. It helps identify which skills
-        the learner should acquire to improve their job eligibility.
+        the skills required by a specific job. It helps identify which skills
+        the learner should acquire to be eligible for that particular job.
         
         Args:
             learner (np.ndarray): Learner's skill vector where 1 indicates
                                 possession of a skill and 0 indicates absence.
+            job_id (int): The index of the job to check against.
             
         Returns:
             set: Set of distinct skill indices that the learner needs to learn
-                 to be eligible for jobs. These are skills required by jobs but
-                 not currently possessed by the learner.
+                 to be eligible for the specified job. These are skills required 
+                 by the job but not currently possessed by the learner.    
         """
         # Get learner's current skills
         learner_skills = self.get_learner_acquired_skills(learner)
         
-        # Get all required skills from jobs
-        job_required_skills = set()
-        for job in self.jobs:
-            job_skills = set(np.nonzero(job)[0])
-            job_required_skills.update(job_skills)
+        # Get required skills for the specific job
+        job_skills = set(np.nonzero(self.jobs[job_id])[0])
         
-        # Get missing skills (skills required by jobs but not possessed by learner)
-        missing_skills = job_required_skills - learner_skills
+        # Get missing skills (skills required by the job but not possessed by learner)
+        missing_skills = job_skills - learner_skills
         
         return missing_skills
 
