@@ -64,6 +64,10 @@ def main():
     with open(args.config, "r") as f:
         initial_config = yaml.load(f, Loader=yaml.FullLoader)
 
+    # Initialize beta1 and beta2 as None
+    beta1 = None
+    beta2 = None
+
     # Run weight optimization if using weighted reward and weights are not in config
     if initial_config.get("feature") == "Weighted-Usefulness-as-Rwd":
         model_weights = initial_config.get("model_weights", {})
