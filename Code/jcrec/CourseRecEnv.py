@@ -8,6 +8,7 @@ from gymnasium import spaces
 from stable_baselines3.common.callbacks import BaseCallback
 
 import matchings
+from clustering import CourseClusterer
 
 
 class CourseRecEnv(gym.Env):
@@ -43,47 +44,61 @@ class CourseRecEnv(gym.Env):
         threshold (float): Minimum matching score required for job applicability
         k (int): Maximum number of course recommendations per learner
         baseline (bool): Whether to use baseline reward (True) or utility-based reward (False)
+        use_clustering (bool): Whether to use clustering for reward adjustment
     """
     
-    def __init__(self, dataset, threshold=0.8, k=3, baseline=False, feature="Usefulness-as-Rwd", beta1=0.5, beta2=0.5):
+    def __init__(self, dataset, threshold=0.5, k=1, baseline=False, feature="Usefulness-as-Rwd", beta1=None, beta2=None):
         """Initialize the course recommendation environment.
         
         Args:
-            dataset: Dataset object containing the recommendation system data
-            threshold (float, optional): Minimum matching score for job applicability. Defaults to 0.8.
-            k (int, optional): Maximum number of course recommendations. Defaults to 3.
-            baseline (bool, optional): Whether to use baseline reward. Defaults to False.
-            feature (str, optional): Feature to use for reward. Defaults to "Usefulness-as-Rwd".
-            beta1 (float, optional): Weight for number of applicable jobs in weighted reward. Defaults to 1.0.
-            beta2 (float, optional): Weight for utility in weighted reward. Defaults to 1.0.
+            dataset: Dataset object containing learners, jobs, and courses
+            threshold (float): Minimum matching score for job applicability
+            k (int): Maximum number of course recommendations per learner
+            baseline (bool): Whether to use baseline reward
+            feature (str): Feature type for reward calculation
+            beta1 (float): Weight for job applications in reward calculation
+            beta2 (float): Weight for utility in reward calculation
         """
-        self.feature = feature
+        self.dataset = dataset
+        self.threshold = threshold
+        self.k = k
         self.baseline = baseline
+        self.feature = feature
         self.beta1 = beta1
         self.beta2 = beta2
-        self.dataset = dataset 
-        self.nb_skills = len(dataset.skills) # 46 skills
+        
+        # Initialize basic attributes
+        self.nb_skills = len(dataset.skills)  # 46 skills
         self.mastery_levels = [
-            elem for elem in list(dataset.mastery_levels.values()) if elem > 0 # mastery level: [1,2,3,-1]
+            elem for elem in list(dataset.mastery_levels.values()) if elem > 0  # mastery level: [1,2,3,-1]
         ]
         self.max_level = max(self.mastery_levels)
-        self.nb_courses = len(dataset.courses) #100 courses
-        # get the minimum and maximum number of skills of the learners using np.nonzero
-        self.min_skills = min(np.count_nonzero(self.dataset.learners, axis=1)) # 1
-        self.max_skills = max(np.count_nonzero(self.dataset.learners, axis=1)) # 15
-        self.threshold = threshold 
-        self.k = k
-        # The observation space is a vector of length nb_skills that represents the learner's skills.
-        # The vector contains skill levels, where the minimum level is 0 and the maximum level is max_level (e.g., 3).
-        # We cannot set the lower bound to -1 because negative values are not allowed in this Box space.
+        self.nb_courses = len(dataset.courses)  # 100 courses
+        self.min_skills = min(np.count_nonzero(self.dataset.learners, axis=1))  # 1
+        self.max_skills = max(np.count_nonzero(self.dataset.learners, axis=1))  # 15
+        
+        # Initialize observation and action spaces
         self.observation_space = gym.spaces.Box(
             low=0, high=self.max_level, shape=(self.nb_skills,), dtype=np.int32)
-
-        # Define the action space for the environment.
-        # This is a discrete space where each action corresponds to recommending a specific course.
-        # The total number of possible actions is equal to the number of available courses (nb_courses = 100).
-        # The agent will select an integer in [0, nb_courses - 1], representing the index of the recommended course.
         self.action_space = gym.spaces.Discrete(self.nb_courses)
+        
+        # Initialize clustering if enabled in config
+        self.use_clustering = hasattr(dataset, 'config') and dataset.config.get("use_clustering", False)
+        if self.use_clustering:
+            from clustering import CourseClusterer
+            self.clusterer = CourseClusterer(
+                n_clusters=dataset.config.get("n_clusters", 5),
+                random_state=dataset.config.get("seed", 42),
+                auto_clusters=dataset.config.get("auto_clusters", False),
+                max_clusters=dataset.config.get("max_clusters", 10)
+            )
+            # Fit clusters to courses
+            self.clusterer.fit_course_clusters(dataset.courses)
+        else:
+            self.clusterer = None
+        
+        # Initialize environment state
+        self.reset()
 
     def _get_obs(self):
         """Get the current observation of the environment.
@@ -150,6 +165,13 @@ class CourseRecEnv(gym.Env):
         else:
             self._agent_skills = self.get_random_learner()
         self.nb_recommendations = 0
+        
+        # Reset prev_reward and prev_cluster when starting with a new learner
+        if self.use_clustering:
+            self.prev_reward = None  # Reset to None
+            if self.clusterer is not None:
+                self.clusterer.prev_cluster = None
+            
         observation = self._get_obs()
         info = self._get_info()
         return observation, info
@@ -279,7 +301,8 @@ class CourseRecEnv(gym.Env):
            - Baseline: Number of applicable jobs
            - Usefulness-of-info-as-Rwd: Utility function value
            - Weighted-Usefulness-of-info-as-Rwd: Number of applicable jobs + Utility
-        4. Checks if the episode should terminate
+        4. Adjusts reward using clustering if enabled
+        5. Checks if the episode should terminate
         
         Args:
             action (int): Index of the course to recommend
@@ -324,6 +347,16 @@ class CourseRecEnv(gym.Env):
                 reward = self.beta1 * info["nb_applicable_jobs"] + self.beta2 * info["utility"]  # Combine both metrics with weights
             else:
                 raise ValueError(f"Unknown feature type: {self.feature}")
+
+        # Adjust reward using clustering if enabled
+        if self.use_clustering:
+            # Adjust reward based on clustering
+            reward = self.clusterer.adjust_reward(
+                course_idx=action,
+                original_reward=reward,
+                prev_reward=self.prev_reward
+            )
+            self.prev_reward = reward
 
         self.nb_recommendations += 1
         terminated = self.nb_recommendations == self.k

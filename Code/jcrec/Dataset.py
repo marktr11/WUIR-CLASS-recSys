@@ -487,3 +487,6 @@ class Dataset: #modified class
             set: Set of skill indices that the learner has (value = 1)
         """
         return set(np.nonzero(learner)[0])
+
+
+    

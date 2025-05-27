@@ -1,6 +1,6 @@
 # File: run.yaml
 # Description: Configuration file for the course recommendation system
-# Purpose: Compare skip-expertise-only model (baseline) with skip-expertise-Usefulness model
+# Purpose: Compare models with and without clustering for reward adjustment
 
 # Data Paths
 taxonomy_path: Data - Collection/Final/taxonomy.csv      # Path to skill taxonomy data
@@ -23,9 +23,9 @@ nb_jobs: 100                                          # Number of jobs to includ
 
 # Model Parameters
 threshold: 0.8                                         # Minimum matching threshold for job eligibility
-k: 2                                                 # Number of course recommendations to generate
+k: 1                                                 # Number of course recommendations to generate
 model: dqn                                          # Reinforcement learning algorithm (PPO)
-total_steps: 500000                                   # Total training steps
+total_steps: 5000                                  # Total training steps
 eval_freq: 1000                                       # Evaluation frequency during training
 nb_runs: 1                                            # Number of independent runs
 seed: 42                                              # Random seed for reproducibility
@@ -37,15 +37,19 @@ baseline: false                                        # Model type:
 feature: "Usefulness-as-Rwd"                         # Feature type for non-baseline model 
 #options: "Usefulness-as-Rwd" or "Weighted-Usefulness-as-Rwd"
 
+# Clustering Configuration
+use_clustering: true                                  # Whether to use clustering for reward adjustment
+auto_clusters: true                                   # Whether to automatically determine optimal number of clusters
+max_clusters: 10                                      # Maximum number of clusters to try when using elbow method
+n_clusters: 4                                         # Number of clusters for K-means clustering (used if auto_clusters=false)
+
 # Purpose
-# This configuration is designed to compare two approaches:
-# 1. Baseline model: No-Mastery-Levels-only approach
-# 2. Enhanced model: UIR-No-Mastery-Levels with Usefulness as reward
-
-
+# This configuration is designed to compare:
+# 1. Models with clustering-based reward adjustment (Usefulness-as-Rwd, Weighted-Usefulness-as-Rwd,Baseline)
+# 2. Models without clustering (Usefulness-as-Rwd, Weighted-Usefulness-as-Rwd,Baseline)
+# The comparison helps evaluate the impact of clustering on learning stability and performance
 
 # Model Hyperparameters for feature "Weighted-Usefulness-as-Rwd"
-
 model_weights:
   dqn:
     beta1: 0.1

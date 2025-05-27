@@ -2,6 +2,7 @@ import os
 import argparse
 import mlflow
 import yaml
+import numpy as np
 
 
 from Dataset import Dataset
@@ -101,8 +102,7 @@ def main():
     # --- MLflow: experiment and run ---
     mlflow.set_tracking_uri("http://127.0.0.1:8080")
 
-    mlflow.set_experiment("SKIP-EXPERTISE-EXP1")
-
+    mlflow.set_experiment("CLUSTERING-AJUSTED-RWD-EXP2")
 
     for run in range(config["nb_runs"]):
         if config["baseline"]:
@@ -110,6 +110,10 @@ def main():
         else:
             run_name = f"{config['model']}_{config['feature']}_k_{config['k']}_total_steps_{config['total_steps']}"
 
+        # Add clustering info to run name if enabled
+        if config["use_clustering"]:
+            # We'll update this after getting optimal_k
+            run_name = f"{run_name}_clusters_auto"
 
         with mlflow.start_run(run_name=run_name):
             print(f"\n--- Starting MLflow Run: {run_name}---")
@@ -128,6 +132,12 @@ def main():
             if config.get("model") in ["ppo", "dqn"]:
                 mlflow.log_param("total_steps", config.get("total_steps"))
                 mlflow.log_param("eval_freq", config.get("eval_freq"))
+
+            # Log clustering parameters if enabled
+            if config["use_clustering"]:
+                mlflow.log_param("use_clustering", True)
+                mlflow.log_param("n_clusters", config["n_clusters"])
+                mlflow.log_param("clustering_random_state", config["seed"])
 
             mlflow.log_param("nb_cvs", config["nb_cvs"])
             mlflow.log_param("nb_jobs", config["nb_jobs"])
@@ -171,7 +181,22 @@ def main():
                 )
                 recommender.reinforce_recommendation()
 
-
+                # Log clustering metrics after recommender is initialized
+                if config["use_clustering"]:
+                    # Get clusterer from the environment
+                    clusterer = recommender.train_env.clusterer
+                    
+                    # Update run name with optimal_k if available
+                    if hasattr(clusterer, 'optimal_k'):
+                        optimal_k = clusterer.optimal_k
+                        mlflow.set_tag("optimal_k", optimal_k)
+                        # Update run name with optimal_k
+                        new_run_name = f"{run_name}_k{optimal_k}"
+                        mlflow.set_tag("mlflow.runName", new_run_name)
+                    
+                    # Log clustering metrics
+                    if hasattr(clusterer, 'inertia_'):
+                        mlflow.log_metric("clustering_inertia", clusterer.inertia_)
 
                 # --- MLflow: Log Tags 
                 mlflow.set_tag("model_class", config["model"])
