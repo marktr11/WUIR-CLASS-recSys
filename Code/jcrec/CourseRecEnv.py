@@ -84,6 +84,9 @@ class CourseRecEnv(gym.Env):
         
         # Initialize clustering if enabled in config
         self.use_clustering = hasattr(dataset, 'config') and dataset.config.get("use_clustering", False)
+        self.clusterer = None
+        self.prev_reward = None
+        
         if self.use_clustering:
             from clustering import CourseClusterer
             self.clusterer = CourseClusterer(
@@ -94,8 +97,6 @@ class CourseRecEnv(gym.Env):
             )
             # Fit clusters to courses
             self.clusterer.fit_course_clusters(dataset.courses)
-        else:
-            self.clusterer = None
         
         # Initialize environment state
         self.reset()
@@ -166,11 +167,10 @@ class CourseRecEnv(gym.Env):
             self._agent_skills = self.get_random_learner()
         self.nb_recommendations = 0
         
-        # Reset prev_reward and prev_cluster when starting with a new learner
-        if self.use_clustering:
-            self.prev_reward = None  # Reset to None
-            if self.clusterer is not None:
-                self.clusterer.prev_cluster = None
+        # Reset clustering-related attributes
+        self.prev_reward = None
+        if self.use_clustering and self.clusterer is not None:
+            self.clusterer.prev_cluster = None
             
         observation = self._get_obs()
         info = self._get_info()
@@ -349,7 +349,7 @@ class CourseRecEnv(gym.Env):
                 raise ValueError(f"Unknown feature type: {self.feature}")
 
         # Adjust reward using clustering if enabled
-        if self.use_clustering:
+        if self.use_clustering and self.clusterer is not None:
             # Adjust reward based on clustering
             reward = self.clusterer.adjust_reward(
                 course_idx=action,

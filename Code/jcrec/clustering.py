@@ -76,37 +76,16 @@ class CourseClusterer:
         self.optimal_k = None
         
         # Create Clustering directory if it doesn't exist
-        current_dir = os.path.dirname(os.path.abspath(__file__))  # Get current file's directory
+        current_dir = os.path.dirname(os.path.abspath(__file__))
         self.clustering_dir = os.path.join(current_dir, "..", "Clustering")
-        print(f"\nCurrent directory: {current_dir}")
-        print(f"Creating clustering directory at: {os.path.abspath(self.clustering_dir)}")
-        
         if not os.path.exists(self.clustering_dir):
             os.makedirs(self.clustering_dir)
-            print("Created new clustering directory")
-        else:
-            print("Clustering directory already exists")
-            
-        # Verify directory exists and is writable
-        if os.path.exists(self.clustering_dir):
-            print(f"Clustering directory exists at: {self.clustering_dir}")
-            if os.access(self.clustering_dir, os.W_OK):
-                print("Clustering directory is writable")
-            else:
-                print("WARNING: Clustering directory is not writable!")
-        else:
-            print("ERROR: Failed to create clustering directory!")
         
     def find_optimal_clusters(self, features_scaled):
         """Find optimal number of clusters using elbow method."""
-        # Check if elbow curve already exists
         plot_path = os.path.join(self.clustering_dir, 'elbow_curve.png')
-        print(f"\nChecking for existing elbow curve at: {plot_path}")
-        if os.path.exists(plot_path):
-            print("Using existing elbow curve from previous run")
-            return self.optimal_k if self.optimal_k is not None else self.n_clusters
-            
-        print("Generating new elbow curve...")
+        print("\nFinding optimal number of clusters...")
+        
         inertias = []
         K = range(1, self.max_clusters + 1)
         
@@ -135,49 +114,20 @@ class CourseClusterer:
         plt.axvline(x=optimal_k, color='r', linestyle='--', label=f'Optimal k = {optimal_k}')
         plt.legend()
         
-        # Save plot to Clustering directory
-        print(f"Saving elbow curve to: {plot_path}")
-        try:
-            plt.savefig(plot_path)
-            print("Successfully saved elbow curve")
-            if os.path.exists(plot_path):
-                print(f"Verified elbow curve exists at: {plot_path}")
-            else:
-                print("ERROR: Elbow curve file was not created!")
-        except Exception as e:
-            print(f"ERROR saving elbow curve: {str(e)}")
-        finally:
-            plt.close()
+        # Save plot
+        plt.savefig(plot_path)
+        plt.close()
         
-        print(f"Generated new elbow curve with optimal k = {optimal_k}")
+        print(f"Optimal number of clusters: {optimal_k}")
         return optimal_k
         
     def fit_course_clusters(self, courses):
-        """Fit clusters for courses based on their provided skills.
-        
-        This method performs K-means clustering on courses based on two metrics:
-        1. Skill Coverage: Percentage of total skills provided by the course
-        2. Skill Diversity: Entropy-based measure of skill distribution
-        
-        The clustering helps identify groups of similar courses based on their
-        skill profiles, which is used to adjust rewards during training.
-        
-        Args:
-            courses (np.ndarray): Array of course data [required_skills, provided_skills]
-                Shape: (n_courses, 2, n_skills)
-                - required_skills: Binary array of required skills (currently all zeros)
-                - provided_skills: Binary array of skills provided by the course
-        """
+        """Fit clusters for courses based on their provided skills."""
         print("\nStarting course clustering...")
-        # Extract provided skills (ignore required skills as they are all zeros)
         provided_skills = courses[:, 1]
-        print(f"Number of courses to cluster: {len(provided_skills)}")
         
         # Calculate skill coverage and diversity metrics
         n_skills = provided_skills.shape[1]
-        print(f"Number of skills per course: {n_skills}")
-        
-        # Calculate coverage (percentage of skills provided)
         coverage = np.sum(provided_skills, axis=1) / n_skills
         
         # Calculate skill diversity using entropy
@@ -185,23 +135,17 @@ class CourseClusterer:
         entropy = -np.sum(skill_distribution * np.log2(skill_distribution + 1e-10), axis=1)
         
         # Combine metrics into features for clustering
-        self.features = np.column_stack([
-            coverage,  # How many skills the course provides
-            entropy    # How diverse the skills are
-        ])
+        self.features = np.column_stack([coverage, entropy])
         
-        # Scale features to have zero mean and unit variance
+        # Scale features
         features_scaled = self.scaler.fit_transform(self.features)
         
         # Find optimal number of clusters if auto_clusters is enabled
         if self.auto_clusters:
-            print("\nFinding optimal number of clusters...")
             self.optimal_k = self.find_optimal_clusters(features_scaled)
             self.n_clusters = self.optimal_k
-            print(f"Optimal number of clusters: {self.optimal_k}")
         
-        # Perform K-means clustering with fixed random state
-        print(f"\nPerforming K-means clustering with {self.n_clusters} clusters...")
+        # Perform K-means clustering
         kmeans = KMeans(
             n_clusters=self.n_clusters,
             random_state=self.random_state,
@@ -209,31 +153,35 @@ class CourseClusterer:
         )
         self.course_clusters = kmeans.fit_predict(features_scaled)
         
-        # Store cluster centers and inertia for reproducibility check
+        # Store cluster centers and inertia
         self.cluster_centers_ = kmeans.cluster_centers_
         self.inertia_ = kmeans.inertia_
-        print(f"Clustering inertia: {self.inertia_:.2f}")
+        
+        # Print cluster information
+        print("\nCluster Information:")
+        for i in range(self.n_clusters):
+            n_formations = np.sum(self.course_clusters == i)
+            print(f"Cluster {i}: {n_formations} formations")
         
         # Visualize clusters
-        print("\nGenerating cluster visualization...")
         self.visualize_clusters(features_scaled)
         
     def visualize_clusters(self, features_scaled):
         """Visualize the clusters in 2D space."""
-        plt.figure(figsize=(10, 8))
+        plt.figure(figsize=(12, 10))
         
         # Plot each cluster with different color
         for i in range(self.n_clusters):
-            # Get points in this cluster
             cluster_points = features_scaled[self.course_clusters == i]
-            print(f"Cluster {i} has {len(cluster_points)} courses")
+            n_formations = len(cluster_points)
             
             # Plot points
             plt.scatter(
                 cluster_points[:, 0],  # Coverage
                 cluster_points[:, 1],  # Diversity
-                label=f'Cluster {i}',
-                alpha=0.6
+                label=f'Cluster {i} ({n_formations} formations)',
+                alpha=0.7,
+                s=100  # Increase point size
             )
             
             # Plot cluster center
@@ -243,32 +191,49 @@ class CourseClusterer:
                 center[1],
                 c='black',
                 marker='x',
-                s=100,
-                linewidths=2
+                s=200,  # Increase center marker size
+                linewidths=3
             )
         
-        plt.xlabel('Skill Coverage (scaled)')
-        plt.ylabel('Skill Diversity (scaled)')
-        plt.title('Course Clusters Visualization')
-        plt.legend()
-        plt.grid(True, alpha=0.3)
+        # Add labels and title with larger font sizes
+        plt.xlabel('Skill Coverage (scaled)', fontsize=16, fontweight='bold')
+        plt.ylabel('Skill Diversity (scaled)', fontsize=16, fontweight='bold')
+        plt.title('Course Clusters Visualization', fontsize=20, fontweight='bold', pad=20)
         
-        # Save plot
+        # Customize legend
+        plt.legend(
+            fontsize=14,
+            loc='upper right',
+            bbox_to_anchor=(1.15, 1),
+            frameon=True,
+            framealpha=0.9
+        )
+        
+        # Customize grid
+        plt.grid(True, alpha=0.3, linestyle='--')
+        
+        # Customize ticks
+        plt.xticks(fontsize=14)
+        plt.yticks(fontsize=14)
+        
+        # Add total number of formations
+        total_formations = len(self.course_clusters)
+        plt.text(
+            0.02, 0.98,
+            f'Total Formations: {total_formations}',
+            transform=plt.gca().transAxes,
+            fontsize=14,
+            fontweight='bold',
+            verticalalignment='top'
+        )
+        
+        # Adjust layout to prevent label cutoff
+        plt.tight_layout()
+        
+        # Save plot with high DPI for better quality
         plot_path = os.path.join(self.clustering_dir, 'cluster_visualization.png')
-        print(f"\nSaving cluster visualization to: {plot_path}")
-        try:
-            plt.savefig(plot_path)
-            print("Successfully saved cluster visualization")
-            if os.path.exists(plot_path):
-                print(f"Verified cluster visualization exists at: {plot_path}")
-            else:
-                print("ERROR: Cluster visualization file was not created!")
-        except Exception as e:
-            print(f"ERROR saving cluster visualization: {str(e)}")
-        finally:
-            plt.close()
-        
-        print(f"Cluster visualization saved to {plot_path}")
+        plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+        plt.close()
         
     def adjust_reward(self, course_idx, original_reward, prev_reward):
         """Adjust reward based on cluster membership and reward change.
@@ -282,6 +247,7 @@ class CourseClusterer:
         For subsequent recommendations (k>1), the reward is adjusted based on:
         - Whether the course is in the same cluster as the previous course
         - Whether the reward has increased or decreased
+        - The position in the recommendation sequence (k=2 or k=3)
         
         Args:
             course_idx (int): Index of the current course
@@ -312,14 +278,16 @@ class CourseClusterer:
         # Store current cluster for next comparison
         self.prev_cluster = current_cluster
         
-        # Apply reward adjustment rules
+        # Apply reward adjustment rules with position-based scaling
         if reward_change > 0:  # Reward increased
             if current_cluster == self.prev_cluster:  # Same cluster
-                return original_reward * 1.2  # Strong encouragement
+                # For k=2, use smaller multiplier to make it easier for k=3 to overcome
+                return original_reward * 1.1  # Reduced from 1.2 to 1.1
             else:  # Different cluster
-                return original_reward * 1.5  # Strong encouragement
+                # For k=3, use larger multiplier to encourage exploration
+                return original_reward * 1.3  # Reduced from 1.5 to 1.3
         else:  # Reward decreased
             if current_cluster == self.prev_cluster:  # Same cluster
                 return original_reward * 0.9  # Light penalty
             else:  # Different cluster
-                return original_reward * 0.7  # Heavy penalty 
+                return original_reward * 0.8  # Increased from 0.7 to 0.8 to reduce penalty 

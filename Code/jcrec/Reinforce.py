@@ -67,57 +67,37 @@ class Reinforce:
         self.train_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k, baseline = self.baseline, feature=self.feature, beta1=self.beta1, beta2=self.beta2)
         self.eval_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k, baseline = self.baseline, feature=self.feature, beta1=self.beta1, beta2=self.beta2)
         self.get_model()
-        if self.baseline: #baseline model
-            self.all_results_filename = (
-                "all_"
-                + self.model_name
-                + "_skip-expertise_"
-                + "_nbskills_"
-                + str(len(self.dataset.skills))
-                + "_k_"
-                + str(self.k)
-                + "_run_"
-                + str(run)
-                + ".txt"
-            )
-            self.final_results_filename = (
-                "final_"
-                + self.model_name
-                + "_skip-expertise_"
-                + "_nbskills_"
-                + str(len(self.dataset.skills))
-                + "_k_"
-                + str(self.k)
-                + "_run_"
-                + str(self.run)
-                + ".json"
-            )
-                
-        else : ##### feature model
-            self.all_results_filename = (
-                "all_"
-                + self.model_name
-                +"_"
-                + self.feature
-                + "_nbskills_"
-                + str(len(self.dataset.skills))
-                + "_k_"
-                + str(self.k)
-                + "_run_"
-                + str(run)
-                + ".txt")
-            self.final_results_filename = (
-                "final_"
-                + self.model_name
-                + "_"
-                + self.feature
-                + "_nbskills_"
-                + str(len(self.dataset.skills))
-                + "_k_"
-                + str(self.k)
-                + "_run_"
-                + str(self.run)
-                + ".json")
+        # Check if model uses clustering first
+        if hasattr(self.train_env, 'clusterer'):  # model with clustering
+            if self.baseline:
+                self.all_results_filename = (
+                    f"all_{self.model_name}_baseline_k_{self.k}_total_steps_{self.total_steps}_clusters_auto_run_{run}.txt"
+                )
+                self.final_results_filename = (
+                    f"final_{self.model_name}_baseline_k_{self.k}_total_steps_{self.total_steps}_clusters_auto_run_{run}.json"
+                )
+            else:
+                self.all_results_filename = (
+                    f"all_{self.model_name}_{self.feature}_k_{self.k}_total_steps_{self.total_steps}_clusters_auto_run_{run}.txt"
+                )
+                self.final_results_filename = (
+                    f"final_{self.model_name}_{self.feature}_k_{self.k}_total_steps_{self.total_steps}_clusters_auto_run_{run}.json"
+                )
+        else:  # model without clustering
+            if self.baseline:
+                self.all_results_filename = (
+                    f"all_{self.model_name}_baseline_k_{self.k}_total_steps_{self.total_steps}_run_{run}.txt"
+                )
+                self.final_results_filename = (
+                    f"final_{self.model_name}_baseline_k_{self.k}_total_steps_{self.total_steps}_run_{run}.json"
+                )
+            else:
+                self.all_results_filename = (
+                    f"all_{self.model_name}_{self.feature}_k_{self.k}_total_steps_{self.total_steps}_run_{run}.txt"
+                )
+                self.final_results_filename = (
+                    f"final_{self.model_name}_{self.feature}_k_{self.k}_total_steps_{self.total_steps}_run_{run}.json"
+                )
             
 
         self.eval_callback = EvaluateCallback(
