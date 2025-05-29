@@ -2,6 +2,7 @@ import os
 import argparse
 import mlflow
 import yaml
+import numpy as np
 
 
 from Dataset import Dataset
@@ -30,17 +31,27 @@ def create_and_print_dataset(config):
 def main():
     """Main entry point for the recommendation system pipeline.
     
-    This function:
+    This function orchestrates the entire recommendation process:
     1. Parses command line arguments to get the configuration file path
     2. Loads the configuration from YAML file
-    3. Sets up MLflow experiment tracking
-    4. Runs the specified recommendation model for the configured number of iterations
-    5. Logs parameters, metrics, and artifacts to MLflow
+    3. Handles weight optimization for weighted reward models:
+       - Checks if using Weighted-Usefulness-as-Rwd
+       - Runs weight optimization if weights not found in config
+       - Updates config with optimized weights
+    4. Sets up MLflow experiment tracking
+    5. Runs the specified recommendation model for configured iterations
+    6. Logs parameters, metrics, and artifacts to MLflow
     
     The pipeline supports three types of recommendation models:
     - Greedy: Simple greedy approach for course recommendations
     - Optimal: Optimal solution using mathematical optimization
-    - Reinforce: Reinforcement learning-based approach (DQN, A2C, or PPO)
+    - Reinforce: Reinforcement learning-based approach with:
+        - Multiple algorithms (DQN, A2C, PPO)
+        - Optional clustering-based reward adjustment
+        - Support for different reward types:
+            * Baseline: Number of applicable jobs
+            * Usefulness-as-Rwd: Utility function
+            * Weighted-Usefulness-as-Rwd: Combined reward
     
     For each run, it:
     - Creates a new MLflow run with appropriate naming
@@ -48,6 +59,9 @@ def main():
     - Initializes the dataset
     - Runs the selected recommendation model
     - Logs results and artifacts
+    - For clustering-enabled runs:
+        * Logs clustering parameters and metrics
+        * Updates run name with optimal number of clusters
     
     Command line arguments:
         --config: Path to the configuration file (default: "Code/config/run.yaml")
@@ -60,8 +74,37 @@ def main():
 
     args = parser.parse_args()
 
+    # First load initial config
     with open(args.config, "r") as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
+        initial_config = yaml.load(f, Loader=yaml.FullLoader)
+
+    # Initialize beta1 and beta2 as None
+    beta1 = None
+    beta2 = None
+
+    # Run weight optimization if using weighted reward and weights are not in config
+    if initial_config.get("feature") == "Weighted-Usefulness-as-Rwd":
+        model_weights = initial_config.get("model_weights", {})
+        if initial_config["model"] not in model_weights:
+            print(f"\nOptimizing weights for {initial_config['model'].upper()}...")
+            from weight_optimization import optimize_weights
+            optimize_weights(args.config)
+            
+            # Reload config after weight optimization
+            with open(args.config, "r") as f:
+                config = yaml.load(f, Loader=yaml.FullLoader)
+        else:
+            config = initial_config
+            weights = model_weights[initial_config["model"]]
+            print(f"\nUsing existing weights for {initial_config['model'].upper()}: beta1={weights['beta1']}, beta2={weights['beta2']}")
+
+        # Get beta values for current model
+        model_weights = config.get("model_weights", {})
+        current_weights = model_weights.get(config["model"], {})
+        beta1 = current_weights.get("beta1")
+        beta2 = current_weights.get("beta2")
+    else:
+        config = initial_config
 
     model_classes = {
         "greedy": Greedy,
@@ -72,8 +115,7 @@ def main():
     # --- MLflow: experiment and run ---
     mlflow.set_tracking_uri("http://127.0.0.1:8080")
 
-    mlflow.set_experiment("SKIP-EXPERTISE-EXP1")
-
+    mlflow.set_experiment("CLUSTERING-AJUSTED-RWD-EXP2")
 
     for run in range(config["nb_runs"]):
         if config["baseline"]:
@@ -81,6 +123,10 @@ def main():
         else:
             run_name = f"{config['model']}_{config['feature']}_k_{config['k']}_total_steps_{config['total_steps']}"
 
+        # Add clustering info to run name if enabled
+        if config["use_clustering"]:
+            # We'll update this after getting optimal_k
+            run_name = f"{run_name}_clusters_auto"
 
         with mlflow.start_run(run_name=run_name):
             print(f"\n--- Starting MLflow Run: {run_name}---")
@@ -99,6 +145,17 @@ def main():
             if config.get("model") in ["ppo", "dqn"]:
                 mlflow.log_param("total_steps", config.get("total_steps"))
                 mlflow.log_param("eval_freq", config.get("eval_freq"))
+
+            # Log clustering parameters if enabled
+            if config["use_clustering"]:
+                mlflow.log_param("use_clustering", True)
+                if config.get("auto_clusters", False):
+                    mlflow.log_param("auto_clusters", True)
+                    mlflow.log_param("max_clusters", config.get("max_clusters", 10))
+                else:
+                    mlflow.log_param("auto_clusters", False)
+                    mlflow.log_param("n_clusters", config["n_clusters"])
+                mlflow.log_param("clustering_random_state", config["seed"])
 
             mlflow.log_param("nb_cvs", config["nb_cvs"])
             mlflow.log_param("nb_jobs", config["nb_jobs"])
@@ -137,11 +194,27 @@ def main():
                     config["eval_freq"],
                     config["feature"],
                     config["baseline"],
-                    
+                    beta1,
+                    beta2
                 )
                 recommender.reinforce_recommendation()
 
-
+                # Log clustering metrics after recommender is initialized
+                if config["use_clustering"]:
+                    # Get clusterer from the environment
+                    clusterer = recommender.train_env.clusterer
+                    
+                    # Update run name with optimal_k if available
+                    if hasattr(clusterer, 'optimal_k'):
+                        optimal_k = clusterer.optimal_k
+                        mlflow.log_param("optimal_k", optimal_k)  # Log as parameter instead of tag
+                        # Update run name with optimal_k
+                        new_run_name = f"{run_name}_k{optimal_k}"
+                        mlflow.set_tag("mlflow.runName", new_run_name)
+                    
+                    # Log clustering metrics
+                    if hasattr(clusterer, 'inertia_'):
+                        mlflow.log_metric("clustering_inertia", clusterer.inertia_)
 
                 # --- MLflow: Log Tags 
                 mlflow.set_tag("model_class", config["model"])

@@ -157,3 +157,4 @@ def learner_course_matching(learner: np.ndarray, course: np.ndarray) -> float:
     provided_matching = learner_course_provided_matching(learner, course)
 
     return required_matching * (1 - provided_matching)  # user-course relevantness
+

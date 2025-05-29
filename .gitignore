@@ -60,3 +60,13 @@ wandb/
 # EDA folder and its contents
 Code/eda/
 Code/eda/**/*
+
+# Results and backups
+Code/results/
+Code/backups/
+
+# Documentation
+Code/README_EN.md
+
+# OS
+Thumbs.db

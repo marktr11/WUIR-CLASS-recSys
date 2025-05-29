@@ -8,6 +8,7 @@ from gymnasium import spaces
 from stable_baselines3.common.callbacks import BaseCallback
 
 import matchings
+from clustering import CourseClusterer
 
 
 class CourseRecEnv(gym.Env):
@@ -17,10 +18,10 @@ class CourseRecEnv(gym.Env):
     reinforcement learning. The environment simulates the process of recommending
     courses to learners to help them acquire skills needed for jobs.
     
-    The environment operates in two modes:
+    The environment operates in three modes:
     1. Baseline: Uses number of applicable jobs as reward
-    2. Skip-expertise: Uses a utility function that considers both skill acquisition
-       and job applicability
+    2. Usefulness-as-Rwd: Uses utility function as reward
+    3. Weighted-Usefulness-as-Rwd: Combines both applicable jobs and utility with weights
     
     Observation Space:
         - Vector of length nb_skills representing learner's current skill levels
@@ -43,41 +44,68 @@ class CourseRecEnv(gym.Env):
         threshold (float): Minimum matching score required for job applicability
         k (int): Maximum number of course recommendations per learner
         baseline (bool): Whether to use baseline reward (True) or utility-based reward (False)
+        feature (str): Type of reward calculation ("baseline", "Usefulness-as-Rwd", or "Weighted-Usefulness-as-Rwd")
+        beta1 (float): Weight for job applications in weighted reward
+        beta2 (float): Weight for utility in weighted reward
+        use_clustering (bool): Whether to use clustering for reward adjustment
     """
     
-    def __init__(self, dataset, threshold=0.8, k=3, baseline=False):
+    def __init__(self, dataset, threshold=0.5, k=1, baseline=False, feature="Usefulness-as-Rwd", beta1=None, beta2=None):
         """Initialize the course recommendation environment.
         
         Args:
-            dataset: Dataset object containing the recommendation system data
-            threshold (float, optional): Minimum matching score for job applicability. Defaults to 0.8.
-            k (int, optional): Maximum number of course recommendations. Defaults to 3.
-            baseline (bool, optional): Whether to use baseline reward. Defaults to False.
+            dataset: Dataset object containing learners, jobs, and courses
+            threshold (float): Minimum matching score for job applicability
+            k (int): Maximum number of course recommendations per learner
+            baseline (bool): Whether to use baseline reward
+            feature (str): Feature type for reward calculation:
+                - "baseline": Use number of applicable jobs
+                - "Usefulness-as-Rwd": Use utility function
+                - "Weighted-Usefulness-as-Rwd": Combine both with weights
+            beta1 (float): Weight for job applications in weighted reward
+            beta2 (float): Weight for utility in weighted reward
         """
+        self.dataset = dataset
+        self.threshold = threshold
+        self.k = k
         self.baseline = baseline
-        self.dataset = dataset 
-        self.nb_skills = len(dataset.skills) # 46 skills
+        self.feature = feature
+        self.beta1 = beta1
+        self.beta2 = beta2
+        
+        # Initialize basic attributes
+        self.nb_skills = len(dataset.skills)  # 46 skills
         self.mastery_levels = [
-            elem for elem in list(dataset.mastery_levels.values()) if elem > 0 # mastery level: [1,2,3,-1]
+            elem for elem in list(dataset.mastery_levels.values()) if elem > 0  # mastery level: [1,2,3,-1]
         ]
         self.max_level = max(self.mastery_levels)
-        self.nb_courses = len(dataset.courses) #100 courses
-        # get the minimum and maximum number of skills of the learners using np.nonzero
-        self.min_skills = min(np.count_nonzero(self.dataset.learners, axis=1)) # 1
-        self.max_skills = max(np.count_nonzero(self.dataset.learners, axis=1)) # 15
-        self.threshold = threshold 
-        self.k = k
-        # The observation space is a vector of length nb_skills that represents the learner's skills.
-        # The vector contains skill levels, where the minimum level is 0 and the maximum level is max_level (e.g., 3).
-        # We cannot set the lower bound to -1 because negative values are not allowed in this Box space.
+        self.nb_courses = len(dataset.courses)  # 100 courses
+        self.min_skills = min(np.count_nonzero(self.dataset.learners, axis=1))  # 1
+        self.max_skills = max(np.count_nonzero(self.dataset.learners, axis=1))  # 15
+        
+        # Initialize observation and action spaces
         self.observation_space = gym.spaces.Box(
             low=0, high=self.max_level, shape=(self.nb_skills,), dtype=np.int32)
-
-        # Define the action space for the environment.
-        # This is a discrete space where each action corresponds to recommending a specific course.
-        # The total number of possible actions is equal to the number of available courses (nb_courses = 100).
-        # The agent will select an integer in [0, nb_courses - 1], representing the index of the recommended course.
         self.action_space = gym.spaces.Discrete(self.nb_courses)
+        
+        # Initialize clustering if enabled in config
+        self.use_clustering = hasattr(dataset, 'config') and dataset.config.get("use_clustering", False)
+        self.clusterer = None
+        self.prev_reward = None
+        
+        if self.use_clustering:
+            from clustering import CourseClusterer
+            self.clusterer = CourseClusterer(
+                n_clusters=dataset.config.get("n_clusters", 5),
+                random_state=dataset.config.get("seed", 42),
+                auto_clusters=dataset.config.get("auto_clusters", False),
+                max_clusters=dataset.config.get("max_clusters", 10)
+            )
+            # Fit clusters to courses
+            self.clusterer.fit_course_clusters(dataset.courses)
+        
+        # Initialize environment state
+        self.reset()
 
     def _get_obs(self):
         """Get the current observation of the environment.
@@ -144,6 +172,12 @@ class CourseRecEnv(gym.Env):
         else:
             self._agent_skills = self.get_random_learner()
         self.nb_recommendations = 0
+        
+        # Reset clustering-related attributes
+        self.prev_reward = None
+        if self.use_clustering and self.clusterer is not None:
+            self.clusterer.prev_cluster = None
+            
         observation = self._get_obs()
         info = self._get_info()
         return observation, info
@@ -152,8 +186,8 @@ class CourseRecEnv(gym.Env):
         """Calculate N1, N2, N3 metrics for a course recommendation.
         
         These metrics evaluate the effectiveness of a course recommendation:
-        - N1: Number of missing skills resolved by the course
-        - N2: Number of remaining missing skills after taking the course
+        - N1: Sum over all unachievable goals of the intersection between skills acquired after taking the course and missing skills for each goal
+        - N2: Sum over all unachievable goals of the remaining missing skills after taking the course
         - N3: Number of skills provided by the course that are not in missing skills
         
         Args:
@@ -163,26 +197,35 @@ class CourseRecEnv(gym.Env):
         Returns:
             tuple: (N1, N2, N3) metrics
         """
-        # Get missing skills before updating
-        missing_skills_before = self.dataset.get_learner_missing_skills(learner)
+        # Calculate skills after learning the course
+        cons_skills = np.maximum(learner, course[1])
+        cons_skills_set = set(np.nonzero(cons_skills)[0])
         
         # Get skills provided by the course
         course_provided_skills = set(np.nonzero(course[1])[0])
         
-        # Calculate skills after learning the course, update state
-        updated_skills = np.maximum(learner, course[1])
+        # Initialize N1 and N2
+        N1 = 0
+        N2 = 0
         
-        # Get missing skills after updating
-        missing_skills_after = self.dataset.get_learner_missing_skills(updated_skills)
+        # Calculate for each job
+        for job_id in range(len(self.dataset.jobs)):
+            # Get missing skills for this job before learning
+            missing_skills = self.dataset.get_learner_missing_skills(learner, job_id)
+            
+            # Check if this job is in Ga (unachievable goals)
+            if len(missing_skills) > 0:
+                # Calculate N1: intersection of acquired skills and missing skills
+                N1 += len(cons_skills_set.intersection(missing_skills))
+                
+                # Calculate N2: remaining missing skills after learning
+                N2 += len(missing_skills - cons_skills_set)
         
-        # Calculate N1: number of missing skills resolved by this course
-        N1 = len(missing_skills_before - missing_skills_after)
-        
-        # Calculate N2: remaining missing skills after learning this course
-        N2 = len(missing_skills_after)
-        
-        # Calculate N3: number of skills provided by the course that are not in missing skills
-        N3 = len(course_provided_skills - missing_skills_before)
+        # Calculate N3: number of skills provided by the course that are not in any missing skills
+        all_missing_skills = set()
+        for job_id in range(len(self.dataset.jobs)):
+            all_missing_skills.update(self.dataset.get_learner_missing_skills(learner, job_id))
+        N3 = len(course_provided_skills - all_missing_skills)
         
         return N1, N2, N3
 
@@ -221,6 +264,11 @@ class CourseRecEnv(gym.Env):
         - N1: Number of missing skills resolved
         - N2: Number of remaining missing skills
         - N3: Number of additional skills provided
+        
+        This utility function considers:
+        1. How many new jobs become applicable (|E(φ)|)
+        2. How effectively the course resolves missing skills (N1 fraction)
+        3. The proportion of jobs that were initially not applicable (1/(|G|+1))
         
         Args:
             learner (np.ndarray): Current learner's skill vector
@@ -262,9 +310,10 @@ class CourseRecEnv(gym.Env):
         2. Updates the learner's skills if the course is valid
         3. Calculates the reward based on the selected mode:
            - Baseline: Number of applicable jobs
-           - Usefulness-of-info-as-Rwd: Utility function value
-           - Weighted-Usefulness-of-info-as-Rwd: Number of applicable jobs + Utility
-        4. Checks if the episode should terminate
+           - Usefulness-as-Rwd: Utility function value
+           - Weighted-Usefulness-as-Rwd: beta1 * applicable_jobs + beta2 * utility
+        4. Adjusts reward using clustering if enabled
+        5. Checks if the episode should terminate
         
         Args:
             action (int): Index of the course to recommend
@@ -303,12 +352,22 @@ class CourseRecEnv(gym.Env):
             info = self._get_info()
             info["utility"] = utility
             
-            if self.feature == "Usefulness-of-info-as-Rwd":
+            if self.feature == "Usefulness-as-Rwd":
                 reward = info["utility"]  # Use utility as reward
-            elif self.feature == "Weighted-Usefulness-of-info-as-Rwd":
-                reward = info["nb_applicable_jobs"] + info["utility"]  # Combine both metrics
+            elif self.feature == "Weighted-Usefulness-as-Rwd":
+                reward = self.beta1 * info["nb_applicable_jobs"] + self.beta2 * info["utility"]  # Combine both metrics with weights
             else:
                 raise ValueError(f"Unknown feature type: {self.feature}")
+
+        # Adjust reward using clustering if enabled
+        if self.use_clustering and self.clusterer is not None:
+            # Adjust reward based on clustering
+            reward = self.clusterer.adjust_reward(
+                course_idx=action,
+                original_reward=reward,
+                prev_reward=self.prev_reward
+            )
+            self.prev_reward = reward
 
         self.nb_recommendations += 1
         terminated = self.nb_recommendations == self.k
@@ -322,6 +381,12 @@ class EvaluateCallback(BaseCallback):
     This callback evaluates the model's performance at regular intervals during training.
     It calculates the average number of applicable jobs across all learners and logs
     the results to a file.
+    
+    The evaluation process:
+    1. Runs for each learner in the evaluation dataset
+    2. Makes k course recommendations using the current policy
+    3. Tracks the number of applicable jobs after each recommendation
+    4. Calculates average performance across all learners
     
     Attributes:
         eval_env: Environment used for evaluation

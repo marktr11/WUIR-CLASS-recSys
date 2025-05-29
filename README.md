@@ -4,38 +4,45 @@ A reinforcement learning-based course recommendation system that helps learners 
 
 ## Overview
 
-This system uses reinforcement learning to recommend courses to learners based on their current skills and job market requirements. It operates in two modes:
+This system uses reinforcement learning to recommend courses to learners based on their current skills and job market requirements. It operates in three modes:
 
-1. **Baseline Mode**: Uses number of applicable jobs as reward
-2. **No-Mastery-Levels Mode**: Uses a utility function that considers both skill acquisition and job applicability
-   - **Usefulness-of-info-as-Rwd**: Uses utility function as reward
-   - **Weighted-Usefulness-of-info-as-Rwd**: Combines number of applicable jobs with utility function
+1. **Baseline Model**: Uses number of applicable jobs as reward
+2. **Usefulness-as-Rwd (UIR)**: Uses utility function as reward
+3. **Weighted-Usefulness-as-Rwd (WUIR)**: Combines number of applicable jobs with utility function
 
-## Features
+## Key Features
 
 - Binary skill representation (0/1) for simplified skill matching
 - Support for multiple RL algorithms (DQN, A2C, PPO)
 - Course recommendation based on:
   - Learner's current skills
   - Job market requirements
-  - Course prerequisites and outcomes
-- Evaluation metrics:
-  - Learner attractiveness
-  - Number of applicable jobs
-  - Course recommendation utility
+  - Course outcomes
+- K-means clustering for course grouping and reward adjustment
+- Comprehensive evaluation metrics
+
+## Quick Start
+
+1. Install requirements:
+```bash
+pip install -r requirements.txt
+```
+
+2. Configure the system in `Code/config/run.yaml`
+
+3. Run the pipeline:
+```bash
+python Code/jcrec/pipeline.py --config Code/config/run.yaml
+```
 
 ## Project Structure
 
 ```
 Code/
-├── jcrec/
-│   ├── CourseRecEnv.py    # RL environment for course recommendations
-│   ├── Dataset.py         # Data loading and processing
-│   ├── matchings.py       # Skill matching functions
-│   ├── pipeline.py        # Main execution pipeline
-│   └── Reinforce.py       # RL model implementation
-└── config/
-    └── run.yaml          # Configuration file
+├── jcrec/              # Core recommendation system
+├── config/             # Configuration files
+├── results/            # Training results and plots
+└── README_DEVELOPMENT.md  # Detailed development guide
 ```
 
 ## Requirements
@@ -46,46 +53,15 @@ Code/
 - Gymnasium
 - Stable-baselines3
 - MLflow
+- scikit-learn
 
-## Usage
+## Documentation
 
-1. Configure the system in `Code/config/run.yaml`
-2. Run the pipeline:
-```bash
-python Code/jcrec/pipeline.py --config Code/config/run.yaml
-```
+For detailed information about:
+- Development setup and guidelines
+- Configuration options
+- Results management
+- Clustering implementation
+- Model training and evaluation
 
-## Configuration
-
-The system can be configured through `run.yaml` with parameters like:
-- Model type (greedy, optimal, reinforce)
-- Number of recommendations (k)
-- Matching threshold
-- Training steps
-- Evaluation frequency
-- Feature type:
-  - "Usefulness-of-info-as-Rwd": Uses utility function as reward
-  - "Weighted-Usefulness-of-info-as-Rwd": Combines number of applicable jobs with utility
-
-## Reward Mechanisms
-
-The system supports three reward mechanisms:
-
-1. **Baseline Mode**:
-   - Reward = Number of applicable jobs
-
-2. **Usefulness-of-info-as-Rwd**:
-   - Reward = Utility function value
-   - Utility considers skill acquisition and job applicability
-
-3. **Weighted-Usefulness-of-info-as-Rwd**:
-   - Reward = Number of applicable jobs + Utility function value
-   - Combines immediate job eligibility with long-term skill development
-
-## Evaluation
-
-The system tracks and logs:
-- Original and new learner attractiveness
-- Number of applicable jobs
-- Recommendation time
-- Course recommendations for each learner 
+Please refer to `Code/README_DEVELOPMENT.md` 

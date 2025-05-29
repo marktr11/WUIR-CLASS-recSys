@@ -23,6 +23,15 @@ class Dataset: #modified class
     """
     # The Dataset class is used to load and store the data of the recommendation problem
     def __init__(self, config):
+        """Initialize the Dataset with configuration parameters.
+        
+        Args:
+            config (dict): Configuration dictionary containing:
+                - Data paths (taxonomy, courses, resumes, jobs)
+                - Processing parameters (level_3, max_cv_skills)
+                - Dataset size parameters (nb_courses, nb_cvs, nb_jobs)
+                - Random seed for reproducibility
+        """
         self.config = config
         self.load_data()
         self.get_jobs_inverted_index()
@@ -149,42 +158,50 @@ class Dataset: #modified class
         return base_skills
     
 
-    def load_learners(self,replace_unk=1): #### Function modified
-        """Load the learners from the file specified in the config and store it in the class attribute
+    def load_learners(self,replace_unk=1):
+        """Load and process learner profiles from the CV data.
+        
+        This method:
+        1. Loads learner profiles from JSON file
+        2. Converts type-4 skills to type-3 base skills
+        3. Creates a binary skill matrix where:
+           - Rows represent learners
+           - Columns represent skills
+           - 1 indicates possession of skill, 0 indicates absence
+        4. Filters out learners with too many skills
+        5. Creates bidirectional mapping between learner IDs and matrix indices
 
         Args:
-            replace_unk (int, optional): The value to replace the unknown mastery levels. Defaults to 1.
+            replace_unk (int, optional): The value to replace unknown mastery levels. Defaults to 1.
         """
         learners = json.load(open(self.config["cv_path"]))
         self.max_learner_skills = self.config["max_cv_skills"]
         self.learners_index = dict()
 
-        # numpy array to store the learners skill proficiency levels with default value 0
+        # Initialize skill matrix with zeros
         self.learners = np.zeros((len(learners), len(self.skills)), dtype=int)
         index = 0
 
-        # fill the numpy array with the learners skill proficiency levels from the json file
         for learner_id, learner in learners.items():
-
-
-            learner_base_skills = self.get_base_skills(learner) #remove expertise
+            # Convert type-4 skills to type-3 base skills
+            learner_base_skills = self.get_base_skills(learner)
             learner_skills = {skill: 1 for skill in learner_base_skills}
-            
 
-            # if the number of skills is greater than the max_learner_skills, we skip the learner
+            # Skip learners with too many skills
             if len(learner_skills) > self.max_learner_skills:
                 continue
 
-            # we fill the numpy array with the averaged mastery levels
+            # Fill skill matrix
             for skill, level in learner_skills.items():
                 self.learners[index][skill] = level
 
+            # Create bidirectional mapping between learner ID and matrix index
             self.learners_index[index] = learner_id
-            self.learners_index[learner_id] = index #????? why 
+            self.learners_index[learner_id] = index
 
             index += 1
 
-        # we update the learners numpy array with the correct number of rows
+        # Trim matrix to actual number of learners
         self.learners = self.learners[:index]
 
 
@@ -384,33 +401,31 @@ class Dataset: #modified class
         """
         return set(np.nonzero(learner)[0])
 
-    def get_learner_missing_skills(self, learner):
-        """Identify skills that a learner needs to acquire to be eligible for jobs.
+    def get_learner_missing_skills(self, learner, job_id):
+        """Identify skills that a learner needs to acquire to be eligible for a specific job.
         
         This function analyzes the gap between a learner's current skills and
-        the skills required by available jobs. It helps identify which skills
-        the learner should acquire to improve their job eligibility.
+        the skills required by a specific job. It helps identify which skills
+        the learner should acquire to be eligible for that particular job.
         
         Args:
             learner (np.ndarray): Learner's skill vector where 1 indicates
                                 possession of a skill and 0 indicates absence.
+            job_id (int): The index of the job to check against.
             
         Returns:
             set: Set of distinct skill indices that the learner needs to learn
-                 to be eligible for jobs. These are skills required by jobs but
-                 not currently possessed by the learner.
+                 to be eligible for the specified job. These are skills required 
+                 by the job but not currently possessed by the learner.    
         """
         # Get learner's current skills
         learner_skills = self.get_learner_acquired_skills(learner)
         
-        # Get all required skills from jobs
-        job_required_skills = set()
-        for job in self.jobs:
-            job_skills = set(np.nonzero(job)[0])
-            job_required_skills.update(job_skills)
+        # Get required skills for the specific job
+        job_skills = set(np.nonzero(self.jobs[job_id])[0])
         
-        # Get missing skills (skills required by jobs but not possessed by learner)
-        missing_skills = job_required_skills - learner_skills
+        # Get missing skills (skills required by the job but not possessed by learner)
+        missing_skills = job_skills - learner_skills
         
         return missing_skills
 
@@ -489,3 +504,6 @@ class Dataset: #modified class
             set: Set of skill indices that the learner has (value = 1)
         """
         return set(np.nonzero(learner)[0])
+
+
+    
