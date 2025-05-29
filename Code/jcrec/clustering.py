@@ -6,14 +6,17 @@ based on course cluster membership. The clustering helps identify similar course
 provided skills, which is then used to modify the reward signal to encourage more stable learning.
 
 The reward adjustment follows these rules:
-1. Same cluster & reward increase: Strong encouragement (x1.2)
+1. Same cluster & reward increase: Moderate encouragement (x1.1)
    - Encourages the agent to continue exploring within the same cluster when it's working well
+   - Reduced from 1.2 to make it easier for k=3 to overcome
 2. Same cluster & reward decrease: Light penalty (x0.9)
    - Slightly discourages actions that decrease reward within the same cluster
-3. Different cluster & reward increase: Strong encouragement (x1.5)
-   - Strongly encourages the agent to explore new clusters when it finds improvements
-4. Different cluster & reward decrease: Heavy penalty (x0.7)
-   - Heavily discourages actions that decrease reward when switching clusters
+3. Different cluster & reward increase: Strong encouragement (x1.3)
+   - Encourages the agent to explore new clusters when it finds improvements
+   - Reduced from 1.5 to prevent over-exploration
+4. Different cluster & reward decrease: Moderate penalty (x0.8)
+   - Discourages actions that decrease reward when switching clusters
+   - Increased from 0.7 to reduce penalty severity
 
 The clustering is based on two key metrics for each course:
 1. Skill Coverage: The percentage of total skills that the course provides
@@ -179,7 +182,7 @@ class CourseClusterer:
             plt.scatter(
                 cluster_points[:, 0],  # Coverage
                 cluster_points[:, 1],  # Diversity
-                label=f'Cluster {i} ({n_formations} formations)',
+                label=f'Cluster {i} ({n_formations} courses)',
                 alpha=0.7,
                 s=100  # Increase point size
             )
@@ -203,11 +206,12 @@ class CourseClusterer:
         # Customize legend
         plt.legend(
             fontsize=14,
-            loc='upper right',
-            bbox_to_anchor=(1.15, 1),
+            loc='lower left',          
+            bbox_to_anchor=(0, -0.15), 
             frameon=True,
             framealpha=0.9
         )
+
         
         # Customize grid
         plt.grid(True, alpha=0.3, linestyle='--')
@@ -220,7 +224,7 @@ class CourseClusterer:
         total_formations = len(self.course_clusters)
         plt.text(
             0.02, 0.98,
-            f'Total Formations: {total_formations}',
+            f'Total Courses: {total_formations}',
             transform=plt.gca().transAxes,
             fontsize=14,
             fontweight='bold',
@@ -247,7 +251,12 @@ class CourseClusterer:
         For subsequent recommendations (k>1), the reward is adjusted based on:
         - Whether the course is in the same cluster as the previous course
         - Whether the reward has increased or decreased
-        - The position in the recommendation sequence (k=2 or k=3)
+        
+        Reward adjustment rules:
+        1. Same cluster & reward increase: x1.1 (reduced from 1.2 to make it easier for k=3)
+        2. Same cluster & reward decrease: x0.9 (light penalty)
+        3. Different cluster & reward increase: x1.3 (reduced from 1.5 to prevent over-exploration)
+        4. Different cluster & reward decrease: x0.8 (increased from 0.7 to reduce penalty)
         
         Args:
             course_idx (int): Index of the current course

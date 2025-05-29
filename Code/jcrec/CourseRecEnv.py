@@ -18,10 +18,10 @@ class CourseRecEnv(gym.Env):
     reinforcement learning. The environment simulates the process of recommending
     courses to learners to help them acquire skills needed for jobs.
     
-    The environment operates in two modes:
+    The environment operates in three modes:
     1. Baseline: Uses number of applicable jobs as reward
-    2. Skip-expertise: Uses a utility function that considers both skill acquisition
-       and job applicability
+    2. Usefulness-as-Rwd: Uses utility function as reward
+    3. Weighted-Usefulness-as-Rwd: Combines both applicable jobs and utility with weights
     
     Observation Space:
         - Vector of length nb_skills representing learner's current skill levels
@@ -44,6 +44,9 @@ class CourseRecEnv(gym.Env):
         threshold (float): Minimum matching score required for job applicability
         k (int): Maximum number of course recommendations per learner
         baseline (bool): Whether to use baseline reward (True) or utility-based reward (False)
+        feature (str): Type of reward calculation ("baseline", "Usefulness-as-Rwd", or "Weighted-Usefulness-as-Rwd")
+        beta1 (float): Weight for job applications in weighted reward
+        beta2 (float): Weight for utility in weighted reward
         use_clustering (bool): Whether to use clustering for reward adjustment
     """
     
@@ -55,9 +58,12 @@ class CourseRecEnv(gym.Env):
             threshold (float): Minimum matching score for job applicability
             k (int): Maximum number of course recommendations per learner
             baseline (bool): Whether to use baseline reward
-            feature (str): Feature type for reward calculation
-            beta1 (float): Weight for job applications in reward calculation
-            beta2 (float): Weight for utility in reward calculation
+            feature (str): Feature type for reward calculation:
+                - "baseline": Use number of applicable jobs
+                - "Usefulness-as-Rwd": Use utility function
+                - "Weighted-Usefulness-as-Rwd": Combine both with weights
+            beta1 (float): Weight for job applications in weighted reward
+            beta2 (float): Weight for utility in weighted reward
         """
         self.dataset = dataset
         self.threshold = threshold
@@ -259,6 +265,11 @@ class CourseRecEnv(gym.Env):
         - N2: Number of remaining missing skills
         - N3: Number of additional skills provided
         
+        This utility function considers:
+        1. How many new jobs become applicable (|E(φ)|)
+        2. How effectively the course resolves missing skills (N1 fraction)
+        3. The proportion of jobs that were initially not applicable (1/(|G|+1))
+        
         Args:
             learner (np.ndarray): Current learner's skill vector
             course (np.ndarray): Course's skills array [required, provided]
@@ -299,8 +310,8 @@ class CourseRecEnv(gym.Env):
         2. Updates the learner's skills if the course is valid
         3. Calculates the reward based on the selected mode:
            - Baseline: Number of applicable jobs
-           - Usefulness-of-info-as-Rwd: Utility function value
-           - Weighted-Usefulness-of-info-as-Rwd: Number of applicable jobs + Utility
+           - Usefulness-as-Rwd: Utility function value
+           - Weighted-Usefulness-as-Rwd: beta1 * applicable_jobs + beta2 * utility
         4. Adjusts reward using clustering if enabled
         5. Checks if the episode should terminate
         
@@ -370,6 +381,12 @@ class EvaluateCallback(BaseCallback):
     This callback evaluates the model's performance at regular intervals during training.
     It calculates the average number of applicable jobs across all learners and logs
     the results to a file.
+    
+    The evaluation process:
+    1. Runs for each learner in the evaluation dataset
+    2. Makes k course recommendations using the current policy
+    3. Tracks the number of applicable jobs after each recommendation
+    4. Calculates average performance across all learners
     
     Attributes:
         eval_env: Environment used for evaluation

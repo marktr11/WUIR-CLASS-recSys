@@ -31,17 +31,27 @@ def create_and_print_dataset(config):
 def main():
     """Main entry point for the recommendation system pipeline.
     
-    This function:
+    This function orchestrates the entire recommendation process:
     1. Parses command line arguments to get the configuration file path
     2. Loads the configuration from YAML file
-    3. Sets up MLflow experiment tracking
-    4. Runs the specified recommendation model for the configured number of iterations
-    5. Logs parameters, metrics, and artifacts to MLflow
+    3. Handles weight optimization for weighted reward models:
+       - Checks if using Weighted-Usefulness-as-Rwd
+       - Runs weight optimization if weights not found in config
+       - Updates config with optimized weights
+    4. Sets up MLflow experiment tracking
+    5. Runs the specified recommendation model for configured iterations
+    6. Logs parameters, metrics, and artifacts to MLflow
     
     The pipeline supports three types of recommendation models:
     - Greedy: Simple greedy approach for course recommendations
     - Optimal: Optimal solution using mathematical optimization
-    - Reinforce: Reinforcement learning-based approach (DQN, A2C, or PPO)
+    - Reinforce: Reinforcement learning-based approach with:
+        - Multiple algorithms (DQN, A2C, PPO)
+        - Optional clustering-based reward adjustment
+        - Support for different reward types:
+            * Baseline: Number of applicable jobs
+            * Usefulness-as-Rwd: Utility function
+            * Weighted-Usefulness-as-Rwd: Combined reward
     
     For each run, it:
     - Creates a new MLflow run with appropriate naming
@@ -49,6 +59,9 @@ def main():
     - Initializes the dataset
     - Runs the selected recommendation model
     - Logs results and artifacts
+    - For clustering-enabled runs:
+        * Logs clustering parameters and metrics
+        * Updates run name with optimal number of clusters
     
     Command line arguments:
         --config: Path to the configuration file (default: "Code/config/run.yaml")
@@ -136,7 +149,12 @@ def main():
             # Log clustering parameters if enabled
             if config["use_clustering"]:
                 mlflow.log_param("use_clustering", True)
-                mlflow.log_param("n_clusters", config["n_clusters"])
+                if config.get("auto_clusters", False):
+                    mlflow.log_param("auto_clusters", True)
+                    mlflow.log_param("max_clusters", config.get("max_clusters", 10))
+                else:
+                    mlflow.log_param("auto_clusters", False)
+                    mlflow.log_param("n_clusters", config["n_clusters"])
                 mlflow.log_param("clustering_random_state", config["seed"])
 
             mlflow.log_param("nb_cvs", config["nb_cvs"])
@@ -189,7 +207,7 @@ def main():
                     # Update run name with optimal_k if available
                     if hasattr(clusterer, 'optimal_k'):
                         optimal_k = clusterer.optimal_k
-                        mlflow.set_tag("optimal_k", optimal_k)
+                        mlflow.log_param("optimal_k", optimal_k)  # Log as parameter instead of tag
                         # Update run name with optimal_k
                         new_run_name = f"{run_name}_k{optimal_k}"
                         mlflow.set_tag("mlflow.runName", new_run_name)
