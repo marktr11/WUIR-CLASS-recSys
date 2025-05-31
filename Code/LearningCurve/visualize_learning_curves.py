@@ -473,11 +473,13 @@ def compare_dqn_models(results_dir):
                     # Adjust y_offset based on position in sorted list
                     if current_idx > 0:
                         prev_metric = last_points[current_idx - 1]['metric']
-                        if abs(last_metric - prev_metric) < (max(metrics) - min(metrics)) * 0.05:  # If points are close
-                            y_offset = (current_idx + 1) * y_offset  # Stack text vertically
+                        # Increase threshold for considering points as "close"
+                        if abs(last_metric - prev_metric) < (max(metrics) - min(metrics)) * 0.08:  # Increased from 0.05 to 0.08
+                            # Increase vertical spacing between close values
+                            y_offset = (current_idx + 1) * y_offset  
                     
                     plt.text(last_step + x_offset, last_metric + y_offset, f'{last_metric:.2f}', 
-                            color=color, fontsize=10, fontweight='bold',
+                            color=color, fontsize=14, fontweight='bold',
                             ha='left', va='bottom')
         
         # Set labels and title
@@ -696,11 +698,13 @@ def compare_ppo_models(results_dir):
                     # Adjust y_offset based on position in sorted list
                     if current_idx > 0:
                         prev_metric = last_points[current_idx - 1]['metric']
-                        if abs(last_metric - prev_metric) < (max(metrics) - min(metrics)) * 0.05:  # If points are close
-                            y_offset = (current_idx + 1) * y_offset  # Stack text vertically
+                        # Increase threshold for considering points as "close"
+                        if abs(last_metric - prev_metric) < (max(metrics) - min(metrics)) * 0.1:  # Increased from 0.05 to 0.08
+                            # Increase vertical spacing between close values
+                            y_offset = (current_idx + 1) * y_offset *1.5
                     
                     plt.text(last_step + x_offset, last_metric + y_offset, f'{last_metric:.2f}', 
-                            color=color, fontsize=11, fontweight='bold',
+                            color=color, fontsize=15, fontweight='bold',
                             ha='left', va='bottom')
         
         # Set labels and title
