@@ -392,8 +392,8 @@ def compare_dqn_models(results_dir):
             'non_clustered': '#ff9999'  # Light red
         },
         'Weighted-Usefulness-as-Rwd': {
-            'clustered': '#2ca02c',     # Dark green
-            'non_clustered': '#98fb98'  # Light green
+            'clustered': '#006400',     # Dark green
+            'non_clustered': '#4daf4a'  # Medium green instead of light green
         }
     }
     
@@ -490,6 +490,10 @@ def compare_dqn_models(results_dir):
         
         plt.grid(True, alpha=0.3)
         
+        # Increase padding for x and y axis
+        plt.xlim(min(steps), max(steps) * 1.15)  # Increase x-axis padding to 15%
+        plt.ylim(min(metrics) * 0.95, max(metrics) * 1.15)  # Increase y-axis padding to 15%
+   
         # Set legend position to bottom right
         plt.legend(fontsize=12, loc='lower right', bbox_to_anchor=(1.0, 0.0))
         
@@ -611,8 +615,8 @@ def compare_ppo_models(results_dir):
             'non_clustered': '#ff9999'  # Light red
         },
         'Weighted-Usefulness-as-Rwd': {
-            'clustered': '#2ca02c',     # Dark green
-            'non_clustered': '#98fb98'  # Light green
+            'clustered': '#006400',     # Dark green
+            'non_clustered': '#4daf4a'  # Medium green instead of light green
         }
     }
     
@@ -696,7 +700,7 @@ def compare_ppo_models(results_dir):
                             y_offset = (current_idx + 1) * y_offset  # Stack text vertically
                     
                     plt.text(last_step + x_offset, last_metric + y_offset, f'{last_metric:.2f}', 
-                            color=color, fontsize=10, fontweight='bold',
+                            color=color, fontsize=11, fontweight='bold',
                             ha='left', va='bottom')
         
         # Set labels and title
@@ -709,8 +713,12 @@ def compare_ppo_models(results_dir):
         
         plt.grid(True, alpha=0.3)
         
+        # Increase padding for x and y axis
+        plt.xlim(min(steps), max(steps) * 1.11)  # Increase x-axis padding to 11%
+        plt.ylim(min(metrics) * 0.95, max(metrics) * 1.15)  # Increase y-axis padding to 15%
+   
         # Set legend position to bottom right
-        plt.legend(fontsize=12, loc='lower right', bbox_to_anchor=(1.0, 0.0))
+        plt.legend(fontsize=14, loc='lower right', bbox_to_anchor=(1.0, 0.0))
         
         # Make y-axis ticks more readable
         plt.tick_params(axis='both', which='major', labelsize=12)
@@ -723,6 +731,9 @@ def compare_ppo_models(results_dir):
         plt.tight_layout()
         plt.savefig(output_path, dpi=300, bbox_inches='tight')
         plt.close()
+
+        
+
         
         print(f"Created comparison plot: {output_filename}")
 

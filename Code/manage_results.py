@@ -8,18 +8,26 @@ or experiment configurations. It handles:
 - Listing available results
 - Cleaning up old results
 
+IMPORTANT: This script MUST be executed from the Code directory to work correctly.
+Example:
+    cd Code
+    python manage_results.py list
+
+Directory Structure:
+    Code/
+    ├── results/
+    │   ├── [branch_name]/
+    │   │   ├── plots/     # Contains all plot files
+    │   │   └── data/      # Contains all data files
+    │   └── .gitignore
+    └── backups/
+        └── [branch_name]_[timestamp]/  # Backup directories
+
 Important Notes:
 1. Branch names in results/ are independent of git branches
 2. Each backup creates a new directory with timestamp
 3. Main branch results cannot be deleted
-4. Results are organized as:
-   Code/results/
-   ├── [branch_name]/
-   │   ├── plots/     # Contains all plot files
-   │   └── data/      # Contains all data files
-   └── backups/
-       └── [branch_name]_[timestamp]/  # Backup directories
-
+4. Script must be run from Code directory to ensure correct path resolution
 
 Warnings:
 1. Always backup important results before cleaning
@@ -33,6 +41,19 @@ Warnings:
 
 4. Keep track of backup timestamps for important experiments
    # Backup folders are timestamped – it may be difficult to identify the right one without notes.
+
+Usage:
+    # Make sure you are in the Code directory
+    cd Code
+    
+    # List all available results
+    python manage_results.py list
+    
+    # Backup results for a specific branch
+    python manage_results.py backup experiment1
+    
+    # Clean up old results for a branch
+    python manage_results.py clean old_branch
 """
 
 import os
@@ -65,9 +86,9 @@ def ensure_branch_directories():
     """Create and ensure existence of result directories for current branch.
     
     This function creates the necessary directory structure for storing results:
-    - Code/results/[branch_name]/
-    - Code/results/[branch_name]/plots/
-    - Code/results/[branch_name]/data/
+    - results/[branch_name]/
+    - results/[branch_name]/plots/
+    - results/[branch_name]/data/
     
     Returns:
         tuple: (branch_dir, plots_dir, data_dir) paths
@@ -79,7 +100,7 @@ def ensure_branch_directories():
     current_branch = get_current_branch()
     
     # Define paths
-    base_dir = os.path.join("Code", "results")
+    base_dir = "results"  # Changed from "Code/results"
     branch_dir = os.path.join(base_dir, current_branch)
     plots_dir = os.path.join(branch_dir, "plots")
     data_dir = os.path.join(branch_dir, "data")
@@ -102,10 +123,9 @@ def list_branch_results():
         Only counts files in plots/ and data/ subdirectories.
         Other files in branch directory are ignored.
     """
-    base_dir = os.path.join("Code", "results")
-    if not os.path.exists(base_dir):
-        print("Warning: Results directory does not exist!")
-        return
+    base_dir = "results"  # Changed from "Code/results"
+    # Create base directory if it doesn't exist
+    os.makedirs(base_dir, exist_ok=True)
         
     branches = [d for d in os.listdir(base_dir) 
                if os.path.isdir(os.path.join(base_dir, d))]
@@ -119,6 +139,10 @@ def list_branch_results():
         branch_dir = os.path.join(base_dir, branch)
         plots_dir = os.path.join(branch_dir, "plots")
         data_dir = os.path.join(branch_dir, "data")
+        
+        # Create plots and data directories if they don't exist
+        os.makedirs(plots_dir, exist_ok=True)
+        os.makedirs(data_dir, exist_ok=True)
         
         plots = len(os.listdir(plots_dir)) if os.path.exists(plots_dir) else 0
         data = len(os.listdir(data_dir)) if os.path.exists(data_dir) else 0
@@ -143,9 +167,14 @@ def backup_branch_results(branch_name):
         - Existing backups are not modified
     """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_dir = os.path.join("Code", "backups", f"{branch_name}_{timestamp}")
+    backup_dir = os.path.join("backups", f"{branch_name}_{timestamp}")  # Changed from "Code/backups"
     
-    source_dir = os.path.join("Code", "results", branch_name)
+    source_dir = os.path.join("results", branch_name)  # Changed from "Code/results"
+    # Create source directory if it doesn't exist
+    os.makedirs(source_dir, exist_ok=True)
+    os.makedirs(os.path.join(source_dir, "plots"), exist_ok=True)
+    os.makedirs(os.path.join(source_dir, "data"), exist_ok=True)
+    
     if os.path.exists(source_dir):
         os.makedirs(os.path.dirname(backup_dir), exist_ok=True)
         shutil.copytree(source_dir, backup_dir)
@@ -157,8 +186,8 @@ def backup_branch_results(branch_name):
 def clean_branch_results(branch_name):
     """Remove all results for a specified branch.
     
-    This function deletes the entire results directory for the specified branch.
-    It includes all plots and data files.
+    This function deletes ONLY the specified branch directory and its contents.
+    It will NOT affect other branches or the main results directory.
     
     Args:
         branch_name (str): Name of the branch to clean
@@ -172,12 +201,49 @@ def clean_branch_results(branch_name):
         print("Error: Cannot delete main branch results!")
         return
         
-    branch_dir = os.path.join("Code", "results", branch_name)
-    if os.path.exists(branch_dir):
-        shutil.rmtree(branch_dir)
-        print(f"Cleaned up old results for branch {branch_name}")
-    else:
+    # Only clean the specific branch directory
+    branch_dir = os.path.join("results", branch_name)
+    if not os.path.exists(branch_dir):
         print(f"Warning: No results found for branch {branch_name}")
+        return
+        
+    # Double check that we're only deleting the specific branch
+    if not os.path.basename(branch_dir) == branch_name:
+        print(f"Error: Safety check failed. Aborting clean operation.")
+        return
+        
+    print(f"\nWARNING: You are about to delete ALL results for branch: {branch_name}")
+    print("This operation cannot be undone!")
+    confirm = input("Are you sure you want to continue? (yes/no): ")
+    
+    if confirm.lower() != "yes":
+        print("Clean operation cancelled.")
+        return
+        
+    try:
+        # Try to remove files first
+        for root, dirs, files in os.walk(branch_dir, topdown=False):
+            for name in files:
+                try:
+                    os.remove(os.path.join(root, name))
+                except PermissionError:
+                    print(f"Warning: Could not remove file {os.path.join(root, name)}")
+                    print("Please close any applications that might be using this file.")
+                    return
+            for name in dirs:
+                try:
+                    os.rmdir(os.path.join(root, name))
+                except PermissionError:
+                    print(f"Warning: Could not remove directory {os.path.join(root, name)}")
+                    print("Please close any applications that might be using this directory.")
+                    return
+        # Finally remove the branch directory
+        os.rmdir(branch_dir)
+        print(f"Successfully cleaned up results for branch {branch_name}")
+    except PermissionError:
+        print(f"Error: Access denied when trying to clean {branch_name}")
+        print("Please close any applications that might be using these files.")
+        return
 
 
 if __name__ == "__main__":
