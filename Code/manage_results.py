@@ -152,6 +152,69 @@ def list_branch_results():
         print(f"  + Data: {data} files")
 
 
+def create_directories(base_dir):
+    """Create necessary directories for results.
+    
+    Args:
+        base_dir (str): Base directory path
+        
+    Returns:
+        tuple: (plots_dir, data_dir) paths
+        
+    Note:
+        Creates plots and data directories if they don't exist
+    """
+    # Convert to absolute path
+    base_dir = os.path.abspath(base_dir)
+    plots_dir = os.path.join(base_dir, "plots")
+    data_dir = os.path.join(base_dir, "data")
+    
+    try:
+        os.makedirs(plots_dir, exist_ok=True)
+        os.makedirs(data_dir, exist_ok=True)
+    except Exception as e:
+        print(f"Error creating directories: {e}")
+        print(f"Attempted to create:")
+        print(f"- {plots_dir}")
+        print(f"- {data_dir}")
+        raise
+        
+    return plots_dir, data_dir
+
+
+def backup_results(source_dir, backup_dir):
+    """Backup results to a timestamped directory.
+    
+    Args:
+        source_dir (str): Source directory path
+        backup_dir (str): Backup directory path
+        
+    Note:
+        Creates backup directory if it doesn't exist
+    """
+    # Convert to absolute paths
+    source_dir = os.path.abspath(source_dir)
+    backup_dir = os.path.abspath(backup_dir)
+    
+    try:
+        # Create backup directory structure
+        os.makedirs(source_dir, exist_ok=True)
+        os.makedirs(os.path.join(source_dir, "plots"), exist_ok=True)
+        os.makedirs(os.path.join(source_dir, "data"), exist_ok=True)
+        
+        # Create parent directory for backup
+        os.makedirs(os.path.dirname(backup_dir), exist_ok=True)
+        
+        # Copy files
+        shutil.copytree(source_dir, backup_dir)
+        print(f"Backup created at: {backup_dir}")
+    except Exception as e:
+        print(f"Error creating backup: {e}")
+        print(f"Source: {source_dir}")
+        print(f"Backup: {backup_dir}")
+        raise
+
+
 def backup_branch_results(branch_name):
     """Create a timestamped backup of a branch's results.
     

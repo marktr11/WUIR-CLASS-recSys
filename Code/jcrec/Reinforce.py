@@ -13,17 +13,16 @@ class Reinforce:
     """Reinforcement Learning-based Course Recommendation System.
     
     This class implements a reinforcement learning approach for course recommendations
-    using various RL algorithms from stable-baselines3. The system can operate in three modes:
-    1. Baseline: Uses number of applicable jobs as reward
-    2. Usefulness-as-Rwd (UIR): Uses utility function as reward
-    3. Weighted-Usefulness-as-Rwd (WUIR): Combines number of applicable jobs with utility function
+    using various RL algorithms from stable-baselines3 with mastery levels and clustering.
     
     The system trains an RL agent to recommend courses to learners with the goal of
     maximizing their job opportunities. The agent learns a policy that maps learner
-    skill profiles to course recommendations.
+    skill profiles to course recommendations, considering mastery levels and optional
+    clustering-based reward adjustment.
     
     Features:
     - Support for multiple RL algorithms (DQN, A2C, PPO)
+    - Mastery levels (1-3) for skills
     - Optional clustering-based reward adjustment
     - Comprehensive evaluation metrics
     - MLflow integration for experiment tracking
@@ -36,17 +35,10 @@ class Reinforce:
         run (int): Run identifier for experiment tracking
         total_steps (int): Total number of training steps
         eval_freq (int): Frequency of model evaluation during training
-        feature (str): Feature type for reward calculation:
-            - "baseline": Use number of applicable jobs
-            - "Usefulness-as-Rwd": Use utility function
-            - "Weighted-Usefulness-as-Rwd": Combine both with weights
-        baseline (bool): Whether to use baseline reward (True) or utility-based reward (False)
-        beta1 (float): Weight for job applications in weighted reward
-        beta2 (float): Weight for utility in weighted reward
     """
     
     def __init__(
-        self, dataset, model, k, threshold, run, total_steps=1000, eval_freq=100, feature = "Usefulness-as-Rwd", baseline = False, beta1=None, beta2=None
+        self, dataset, model, k, threshold, run, total_steps=1000, eval_freq=100
     ):  
         """Initialize the reinforcement learning recommendation system.
         
@@ -58,16 +50,7 @@ class Reinforce:
             run (int): Run identifier for experiment tracking
             total_steps (int, optional): Total training steps. Defaults to 1000.
             eval_freq (int, optional): Evaluation frequency. Defaults to 100.
-            feature (str, optional): Feature type for reward calculation:
-                - "baseline": Use number of applicable jobs
-                - "Usefulness-as-Rwd": Use utility function
-                - "Weighted-Usefulness-as-Rwd": Combine both with weights
-                Defaults to "Usefulness-as-Rwd".
-            baseline (bool, optional): Whether to use baseline reward. Defaults to False.
-            beta1 (float, optional): Weight for job applications in weighted reward. Defaults to None.
-            beta2 (float, optional): Weight for utility in weighted reward. Defaults to None.
         """
-        self.baseline = baseline
         self.dataset = dataset
         self.model_name = model
         self.k = k
@@ -75,45 +58,27 @@ class Reinforce:
         self.run = run
         self.total_steps = total_steps
         self.eval_freq = eval_freq
-        self.feature = feature
-        self.beta1 = beta1
-        self.beta2 = beta2
+        
         # Create the training and evaluation environments
-        self.train_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k, baseline = self.baseline, feature=self.feature, beta1=self.beta1, beta2=self.beta2)
-        self.eval_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k, baseline = self.baseline, feature=self.feature, beta1=self.beta1, beta2=self.beta2)
+        self.train_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k)
+        self.eval_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k)
         self.get_model()
+        
         # Check if model uses clustering based on config
         if self.train_env.use_clustering:  # Only use clustering if explicitly enabled
-            if self.baseline:
-                self.all_results_filename = (
-                    f"all_{self.model_name}_baseline_k_{self.k}_total_steps_{self.total_steps}_clusters_auto_run_{run}.txt"
-                )
-                self.final_results_filename = (
-                    f"final_{self.model_name}_baseline_k_{self.k}_total_steps_{self.total_steps}_clusters_auto_run_{run}.json"
-                )
-            else:
-                self.all_results_filename = (
-                    f"all_{self.model_name}_{self.feature}_k_{self.k}_total_steps_{self.total_steps}_clusters_auto_run_{run}.txt"
-                )
-                self.final_results_filename = (
-                    f"final_{self.model_name}_{self.feature}_k_{self.k}_total_steps_{self.total_steps}_clusters_auto_run_{run}.json"
-                )
+            self.all_results_filename = (
+                f"all_{self.model_name}_k_{self.k}_total_steps_{self.total_steps}_clusters_auto_run_{run}.txt"
+            )
+            self.final_results_filename = (
+                f"final_{self.model_name}_k_{self.k}_total_steps_{self.total_steps}_clusters_auto_run_{run}.json"
+            )
         else:  # model without clustering
-            if self.baseline:
-                self.all_results_filename = (
-                    f"all_{self.model_name}_baseline_k_{self.k}_total_steps_{self.total_steps}_run_{run}.txt"
-                )
-                self.final_results_filename = (
-                    f"final_{self.model_name}_baseline_k_{self.k}_total_steps_{self.total_steps}_run_{run}.json"
-                )
-            else:
-                self.all_results_filename = (
-                    f"all_{self.model_name}_{self.feature}_k_{self.k}_total_steps_{self.total_steps}_run_{run}.txt"
-                )
-                self.final_results_filename = (
-                    f"final_{self.model_name}_{self.feature}_k_{self.k}_total_steps_{self.total_steps}_run_{run}.json"
-                )
-            
+            self.all_results_filename = (
+                f"all_{self.model_name}_k_{self.k}_total_steps_{self.total_steps}_run_{run}.txt"
+            )
+            self.final_results_filename = (
+                f"final_{self.model_name}_k_{self.k}_total_steps_{self.total_steps}_run_{run}.json"
+            )
 
         self.eval_callback = EvaluateCallback(
             self.eval_env,
@@ -250,11 +215,19 @@ class Reinforce:
 
         results["recommendations"] = recommendations
 
+        # Create branch directory if it doesn't exist
+        branch_dir = os.path.join(self.dataset.config["results_path"], self.dataset.config["branch_name"])
+        os.makedirs(branch_dir, exist_ok=True)
+        
+        # Create data directory for this branch
+        data_dir = os.path.join(branch_dir, "data")
+        os.makedirs(data_dir, exist_ok=True)
+
         json.dump(
             results,
             open(
                 os.path.join(
-                    self.dataset.config["results_path"],
+                    data_dir,
                     self.final_results_filename,
                 ),
                 "w",

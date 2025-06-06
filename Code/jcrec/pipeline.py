@@ -34,34 +34,21 @@ def main():
     This function orchestrates the entire recommendation process:
     1. Parses command line arguments to get the configuration file path
     2. Loads the configuration from YAML file
-    3. Handles weight optimization for weighted reward models:
-       - Checks if using Weighted-Usefulness-as-Rwd
-       - Runs weight optimization if weights not found in config
-       - Updates config with optimized weights
-    4. Sets up MLflow experiment tracking
-    5. Runs the specified recommendation model for configured iterations
-    6. Logs parameters, metrics, and artifacts to MLflow
+    3. Sets up MLflow experiment tracking
+    4. Runs the specified recommendation model for configured iterations
+    5. Logs parameters, metrics, and artifacts to MLflow
     
-    The pipeline supports three types of recommendation models:
-    - Greedy: Simple greedy approach for course recommendations
-    - Optimal: Optimal solution using mathematical optimization
-    - Reinforce: Reinforcement learning-based approach with:
-        - Multiple algorithms (DQN, A2C, PPO)
-        - Optional clustering-based reward adjustment
-        - Support for different reward types:
-            * Baseline: Number of applicable jobs
-            * Usefulness-as-Rwd: Utility function
-            * Weighted-Usefulness-as-Rwd: Combined reward
-    
-    For each run, it:
+    For each run:
     - Creates a new MLflow run with appropriate naming
     - Logs all relevant parameters and configuration
     - Initializes the dataset
     - Runs the selected recommendation model
     - Logs results and artifacts
-    - For clustering-enabled runs:
-        * Logs clustering parameters and metrics
-        * Updates run name with optimal number of clusters
+    
+    For clustering-enabled runs:
+    - Logs clustering parameters and metrics
+    - Updates run name with optimal number of clusters
+    - Tracks clustering performance metrics
     
     Command line arguments:
         --config: Path to the configuration file (default: "Code/config/run.yaml")
@@ -74,37 +61,9 @@ def main():
 
     args = parser.parse_args()
 
-    # First load initial config
+    # Load config
     with open(args.config, "r") as f:
-        initial_config = yaml.load(f, Loader=yaml.FullLoader)
-
-    # Initialize beta1 and beta2 as None
-    beta1 = None
-    beta2 = None
-
-    # Run weight optimization if using weighted reward and weights are not in config
-    if initial_config.get("feature") == "Weighted-Usefulness-as-Rwd":
-        model_weights = initial_config.get("model_weights", {})
-        if initial_config["model"] not in model_weights:
-            print(f"\nOptimizing weights for {initial_config['model'].upper()}...")
-            from weight_optimization import optimize_weights
-            optimize_weights(args.config)
-            
-            # Reload config after weight optimization
-            with open(args.config, "r") as f:
-                config = yaml.load(f, Loader=yaml.FullLoader)
-        else:
-            config = initial_config
-            weights = model_weights[initial_config["model"]]
-            print(f"\nUsing existing weights for {initial_config['model'].upper()}: beta1={weights['beta1']}, beta2={weights['beta2']}")
-
-        # Get beta values for current model
-        model_weights = config.get("model_weights", {})
-        current_weights = model_weights.get(config["model"], {})
-        beta1 = current_weights.get("beta1")
-        beta2 = current_weights.get("beta2")
-    else:
-        config = initial_config
+        config = yaml.load(f, Loader=yaml.FullLoader)
 
     model_classes = {
         "greedy": Greedy,
@@ -114,14 +73,10 @@ def main():
 
     # --- MLflow: experiment and run ---
     mlflow.set_tracking_uri("http://127.0.0.1:8080")
-
-    mlflow.set_experiment("CLUSTERING-AJUSTED-RWD-EXP2")
+    mlflow.set_experiment("CLUSTERING-EXP3")
 
     for run in range(config["nb_runs"]):
-        if config["baseline"]:
-            run_name = f"{config['model']}_baseline_k_{config['k']}_total_steps_{config['total_steps']}"
-        else:
-            run_name = f"{config['model']}_{config['feature']}_k_{config['k']}_total_steps_{config['total_steps']}"
+        run_name = f"{config['model']}_k_{config['k']}_total_steps_{config['total_steps']}"
 
         # Add clustering info to run name if enabled
         if config["use_clustering"]:
@@ -136,10 +91,6 @@ def main():
             mlflow.log_param("model", config["model"])
             mlflow.log_param("k_recommendations", config["k"])
             mlflow.log_param("threshold", config["threshold"])
-            if config["baseline"]:
-                mlflow.log_param("feature", "baseline") 
-            else:
-                mlflow.log_param("feature", config["feature"]) 
             mlflow.log_param("level_3_taxonomy", config["level_3"])
             mlflow.log_param("seed", config["seed"])
             if config.get("model") in ["ppo", "dqn"]:
@@ -178,12 +129,6 @@ def main():
                 recommendation_method(config["k"], run)
             # Otherwise, we use the Reinforce class, described in Reinforce.py
             else:
-                if config["baseline"]: 
-                    print("feature: baseline")
-                    print("-------------------------------------------")
-                else: 
-                    print(f"feature: {config['feature']}")
-                    print("-------------------------------------------")
                 recommender = Reinforce(
                     dataset,
                     config["model"],
@@ -191,11 +136,7 @@ def main():
                     config["threshold"],
                     run,
                     config["total_steps"],
-                    config["eval_freq"],
-                    config["feature"],
-                    config["baseline"],
-                    beta1,
-                    beta2
+                    config["eval_freq"]
                 )
                 recommender.reinforce_recommendation()
 
@@ -218,7 +159,6 @@ def main():
 
                 # --- MLflow: Log Tags 
                 mlflow.set_tag("model_class", config["model"])
-                mlflow.set_tag("feature_mode", config["feature"])
 
                 print(f"\n--- Finished MLflow Run: {run_name} ---")
 

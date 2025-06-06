@@ -64,10 +64,19 @@ class CourseClusterer:
         max_clusters (int): Maximum number of clusters to try when using elbow method
         optimal_k (int): Optimal number of clusters determined by elbow method
         clustering_dir (str): Directory to save clustering results
+        reward_multipliers (dict): Dictionary of reward adjustment multipliers
     """
     
-    def __init__(self, n_clusters=5, random_state=42, auto_clusters=False, max_clusters=10):
-        """Initialize the clusterer."""
+    def __init__(self, n_clusters=5, random_state=42, auto_clusters=False, max_clusters=10, config=None):
+        """Initialize the clusterer.
+        
+        Args:
+            n_clusters (int): Number of clusters to create
+            random_state (int): Random seed for reproducibility
+            auto_clusters (bool): Whether to automatically determine optimal number of clusters
+            max_clusters (int): Maximum number of clusters to try when using elbow method
+            config (dict): Configuration dictionary containing reward multipliers
+        """
         self.n_clusters = n_clusters
         self.course_clusters = None
         self.scaler = StandardScaler()
@@ -78,15 +87,22 @@ class CourseClusterer:
         self.max_clusters = max_clusters
         self.optimal_k = None
         
+        # Set reward multipliers from config or use defaults
+        self.reward_multipliers = {
+            'same_cluster_increase': config.get('same_cluster_increase', 1.1) if config else 1.1,
+            'same_cluster_decrease': config.get('same_cluster_decrease', 0.9) if config else 0.9,
+            'diff_cluster_increase': config.get('diff_cluster_increase', 1.3) if config else 1.3,
+            'diff_cluster_decrease': config.get('diff_cluster_decrease', 0.8) if config else 0.8
+        }
+        
         # Create Clustering directory if it doesn't exist
         current_dir = os.path.dirname(os.path.abspath(__file__))
         self.clustering_dir = os.path.join(current_dir, "..", "Clustering")
-        if not os.path.exists(self.clustering_dir):
-            os.makedirs(self.clustering_dir)
+        os.makedirs(self.clustering_dir, exist_ok=True)
         
     def find_optimal_clusters(self, features_scaled):
         """Find optimal number of clusters using elbow method."""
-        plot_path = os.path.join(self.clustering_dir, 'elbow_curve.png')
+        plot_path = os.path.join(self.clustering_dir, 'elbow_curve_skillslevels.png')
         print("\nFinding optimal number of clusters...")
         
         inertias = []
@@ -125,20 +141,32 @@ class CourseClusterer:
         return optimal_k
         
     def fit_course_clusters(self, courses):
-        """Fit clusters for courses based on their provided skills."""
+        """Fit clusters for courses based on their required and provided skills."""
         print("\nStarting course clustering...")
-        provided_skills = courses[:, 1]
+        required_skills = courses[:, 0]  # Get required skills
+        provided_skills = courses[:, 1]  # Get provided skills
         
         # Calculate skill coverage and diversity metrics
-        n_skills = provided_skills.shape[1]
-        coverage = np.sum(provided_skills, axis=1) / n_skills
+        n_skills = required_skills.shape[1]
         
-        # Calculate skill diversity using entropy
-        skill_distribution = provided_skills / (np.sum(provided_skills, axis=1, keepdims=True) + 1e-10)
-        entropy = -np.sum(skill_distribution * np.log2(skill_distribution + 1e-10), axis=1)
+        # Calculate coverage considering both required and provided skills
+        # Coverage is now the average of required and provided skill levels
+        required_coverage = np.sum(required_skills, axis=1) / n_skills
+        provided_coverage = np.sum(provided_skills, axis=1) / n_skills
+        coverage = (required_coverage + provided_coverage) / 2
+        
+        # Calculate skill diversity using entropy for both required and provided skills
+        # For required skills
+        required_distribution = required_skills / (np.sum(required_skills, axis=1, keepdims=True) + 1e-10)
+        required_entropy = -np.sum(required_distribution * np.log2(required_distribution + 1e-10), axis=1)
+        
+        # For provided skills
+        provided_distribution = provided_skills / (np.sum(provided_skills, axis=1, keepdims=True) + 1e-10)
+        provided_entropy = -np.sum(provided_distribution * np.log2(provided_distribution + 1e-10), axis=1)
         
         # Combine metrics into features for clustering
-        self.features = np.column_stack([coverage, entropy])
+        # Now we have 4 features: coverage, required_entropy, provided_entropy
+        self.features = np.column_stack([coverage, required_entropy, provided_entropy])
         
         # Scale features
         features_scaled = self.scaler.fit_transform(self.features)
@@ -170,72 +198,121 @@ class CourseClusterer:
         self.visualize_clusters(features_scaled)
         
     def visualize_clusters(self, features_scaled):
-        """Visualize the clusters in 2D space."""
-        plt.figure(figsize=(12, 10))
+        """Visualize the clusters using multiple 2D plots."""
+        # Create a figure with 3 subplots
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(20, 6))
         
-        # Plot each cluster with different color
+        # Plot 1: Coverage vs Required Entropy
         for i in range(self.n_clusters):
             cluster_points = features_scaled[self.course_clusters == i]
             n_formations = len(cluster_points)
             
             # Plot points
-            plt.scatter(
+            ax1.scatter(
                 cluster_points[:, 0],  # Coverage
-                cluster_points[:, 1],  # Diversity
+                cluster_points[:, 1],  # Required Entropy
                 label=f'Cluster {i} ({n_formations} courses)',
                 alpha=0.7,
-                s=100  # Increase point size
+                s=100
             )
             
             # Plot cluster center
             center = self.cluster_centers_[i]
-            plt.scatter(
+            ax1.scatter(
                 center[0],
                 center[1],
                 c='black',
                 marker='x',
-                s=200,  # Increase center marker size
+                s=200,
                 linewidths=3
             )
         
-        # Add labels and title with larger font sizes
-        plt.xlabel('Skill Coverage (scaled)', fontsize=16, fontweight='bold')
-        plt.ylabel('Skill Diversity (scaled)', fontsize=16, fontweight='bold')
-        plt.title('Course Clusters Visualization', fontsize=20, fontweight='bold', pad=20)
+        ax1.set_xlabel('Skill Coverage (scaled)', fontsize=12, fontweight='bold')
+        ax1.set_ylabel('Required Skills Entropy (scaled)', fontsize=12, fontweight='bold')
+        ax1.set_title('Coverage vs Required Entropy', fontsize=14, fontweight='bold')
+        ax1.grid(True, alpha=0.3, linestyle='--')
         
-        # Customize legend
-        plt.legend(
-            fontsize=14,
-            loc='lower left',          
-            bbox_to_anchor=(0, -0.15), 
-            frameon=True,
-            framealpha=0.9
-        )
-
+        # Plot 2: Coverage vs Provided Entropy
+        for i in range(self.n_clusters):
+            cluster_points = features_scaled[self.course_clusters == i]
+            
+            # Plot points
+            ax2.scatter(
+                cluster_points[:, 0],  # Coverage
+                cluster_points[:, 2],  # Provided Entropy
+                label=f'Cluster {i} ({len(cluster_points)} courses)',
+                alpha=0.7,
+                s=100
+            )
+            
+            # Plot cluster center
+            center = self.cluster_centers_[i]
+            ax2.scatter(
+                center[0],
+                center[2],
+                c='black',
+                marker='x',
+                s=200,
+                linewidths=3
+            )
         
-        # Customize grid
-        plt.grid(True, alpha=0.3, linestyle='--')
+        ax2.set_xlabel('Skill Coverage (scaled)', fontsize=12, fontweight='bold')
+        ax2.set_ylabel('Provided Skills Entropy (scaled)', fontsize=12, fontweight='bold')
+        ax2.set_title('Coverage vs Provided Entropy', fontsize=14, fontweight='bold')
+        ax2.grid(True, alpha=0.3, linestyle='--')
         
-        # Customize ticks
-        plt.xticks(fontsize=14)
-        plt.yticks(fontsize=14)
+        # Plot 3: Required vs Provided Entropy
+        for i in range(self.n_clusters):
+            cluster_points = features_scaled[self.course_clusters == i]
+            
+            # Plot points
+            ax3.scatter(
+                cluster_points[:, 1],  # Required Entropy
+                cluster_points[:, 2],  # Provided Entropy
+                label=f'Cluster {i} ({len(cluster_points)} courses)',
+                alpha=0.7,
+                s=100
+            )
+            
+            # Plot cluster center
+            center = self.cluster_centers_[i]
+            ax3.scatter(
+                center[1],
+                center[2],
+                c='black',
+                marker='x',
+                s=200,
+                linewidths=3
+            )
         
-        # Add total number of formations
+        ax3.set_xlabel('Required Skills Entropy (scaled)', fontsize=12, fontweight='bold')
+        ax3.set_ylabel('Provided Skills Entropy (scaled)', fontsize=12, fontweight='bold')
+        ax3.set_title('Required vs Provided Entropy', fontsize=14, fontweight='bold')
+        ax3.grid(True, alpha=0.3, linestyle='--')
+        
+        # Create a single legend for all subplots
+        handles, labels = ax1.get_legend_handles_labels()
+        # Add total courses to the legend
         total_formations = len(self.course_clusters)
-        plt.text(
-            0.02, 0.98,
-            f'Total Courses: {total_formations}',
-            transform=plt.gca().transAxes,
-            fontsize=14,
-            fontweight='bold',
-            verticalalignment='top'
+        handles.append(plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='none', markersize=0))
+        labels.append(f'Total Courses: {total_formations}')
+        
+        fig.legend(
+            handles, labels,
+            loc='center',
+            bbox_to_anchor=(0.5,   0.03),
+            ncol=self.n_clusters + 1,  # +1 for total courses
+            prop={'weight': 'bold', 'size': 12},
+            frameon=True,
+            framealpha=0.9,
         )
         
-        # Adjust layout to prevent label cutoff
+        # Adjust layout to make room for the legend
         plt.tight_layout()
+        plt.subplots_adjust(bottom=0.2)  # Make room for the legend
         
         # Save plot with high DPI for better quality
-        plot_path = os.path.join(self.clustering_dir, 'cluster_visualization.png')
+        plot_path = os.path.join(self.clustering_dir, f'cluster_visualization_skillslevels.png')
         plt.savefig(plot_path, dpi=300, bbox_inches='tight')
         plt.close()
         
@@ -253,10 +330,10 @@ class CourseClusterer:
         - Whether the reward has increased or decreased
         
         Reward adjustment rules:
-        1. Same cluster & reward increase: x1.1 (reduced from 1.2 to make it easier for k=3)
-        2. Same cluster & reward decrease: x0.9 (light penalty)
-        3. Different cluster & reward increase: x1.3 (reduced from 1.5 to prevent over-exploration)
-        4. Different cluster & reward decrease: x0.8 (increased from 0.7 to reduce penalty)
+        1. Same cluster & reward increase: x{same_cluster_increase}
+        2. Same cluster & reward decrease: x{same_cluster_decrease}
+        3. Different cluster & reward increase: x{diff_cluster_increase}
+        4. Different cluster & reward decrease: x{diff_cluster_decrease}
         
         Args:
             course_idx (int): Index of the current course
@@ -287,16 +364,14 @@ class CourseClusterer:
         # Store current cluster for next comparison
         self.prev_cluster = current_cluster
         
-        # Apply reward adjustment rules with position-based scaling
+        # Apply reward adjustment rules using multipliers from config
         if reward_change > 0:  # Reward increased
             if current_cluster == self.prev_cluster:  # Same cluster
-                # For k=2, use smaller multiplier to make it easier for k=3 to overcome
-                return original_reward * 1.1  # Reduced from 1.2 to 1.1
+                return original_reward * self.reward_multipliers['same_cluster_increase']
             else:  # Different cluster
-                # For k=3, use larger multiplier to encourage exploration
-                return original_reward * 1.3  # Reduced from 1.5 to 1.3
+                return original_reward * self.reward_multipliers['diff_cluster_increase']
         else:  # Reward decreased
             if current_cluster == self.prev_cluster:  # Same cluster
-                return original_reward * 0.9  # Light penalty
+                return original_reward * self.reward_multipliers['same_cluster_decrease']
             else:  # Different cluster
-                return original_reward * 0.8  # Increased from 0.7 to 0.8 to reduce penalty 
+                return original_reward * self.reward_multipliers['diff_cluster_decrease'] 
