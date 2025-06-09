@@ -44,6 +44,7 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import os
+from sklearn.decomposition import PCA
 
 class CourseClusterer:
     """Class for clustering courses and adjusting rewards based on cluster membership.
@@ -146,27 +147,34 @@ class CourseClusterer:
         required_skills = courses[:, 0]  # Get required skills
         provided_skills = courses[:, 1]  # Get provided skills
         
-        # Calculate skill coverage and diversity metrics
         n_skills = required_skills.shape[1]
+        max_level = 3  # Maximum skill level is 3
         
-        # Calculate coverage considering both required and provided skills
-        # Coverage is now the average of required and provided skill levels
-        required_coverage = np.sum(required_skills, axis=1) / n_skills
-        provided_coverage = np.sum(provided_skills, axis=1) / n_skills
+        # 1. Coverage features 
+        required_coverage = np.sum(required_skills, axis=1) / (n_skills * max_level)
+        provided_coverage = np.sum(provided_skills, axis=1) / (n_skills * max_level)
         coverage = (required_coverage + provided_coverage) / 2
         
-        # Calculate skill diversity using entropy for both required and provided skills
-        # For required skills
+        # 2. Entropy features 
         required_distribution = required_skills / (np.sum(required_skills, axis=1, keepdims=True) + 1e-10)
         required_entropy = -np.sum(required_distribution * np.log2(required_distribution + 1e-10), axis=1)
         
-        # For provided skills
         provided_distribution = provided_skills / (np.sum(provided_skills, axis=1, keepdims=True) + 1e-10)
         provided_entropy = -np.sum(provided_distribution * np.log2(provided_distribution + 1e-10), axis=1)
         
-        # Combine metrics into features for clustering
-        # Now we have 4 features: coverage, required_entropy, provided_entropy
-        self.features = np.column_stack([coverage, required_entropy, provided_entropy])
+        # 3. Level gap features 
+        level_gap = np.abs(provided_skills - required_skills)
+        avg_level_gap = np.mean(level_gap, axis=1)
+        max_level_gap = np.max(level_gap, axis=1)
+        
+        # Combine features (reduced to 5D)
+        self.features = np.column_stack([
+            coverage,                    # 1D: Overall coverage
+            required_entropy,           # 2D: Required skills diversity
+            provided_entropy,           # 3D: Provided skills diversity
+            avg_level_gap,             # 4D: Average gap between required and provided
+            max_level_gap              # 5D: Maximum gap between required and provided
+        ])
         
         # Scale features
         features_scaled = self.scaler.fit_transform(self.features)
@@ -194,127 +202,69 @@ class CourseClusterer:
             n_formations = np.sum(self.course_clusters == i)
             print(f"Cluster {i}: {n_formations} formations")
         
-        # Visualize clusters
+        # Visualize clusters using PCA
         self.visualize_clusters(features_scaled)
         
     def visualize_clusters(self, features_scaled):
-        """Visualize the clusters using multiple 2D plots."""
-        # Create a figure with 3 subplots
-        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(20, 6))
+        """Visualize the clusters using PCA for dimensionality reduction."""
+        # Apply PCA to reduce to 2D
+        pca = PCA(n_components=2)
+        features_2d = pca.fit_transform(features_scaled)
         
-        # Plot 1: Coverage vs Required Entropy
+        # Create figure
+        plt.figure(figsize=(12, 8))
+        
+        # Plot clusters
         for i in range(self.n_clusters):
-            cluster_points = features_scaled[self.course_clusters == i]
-            n_formations = len(cluster_points)
-            
-            # Plot points
-            ax1.scatter(
-                cluster_points[:, 0],  # Coverage
-                cluster_points[:, 1],  # Required Entropy
-                label=f'Cluster {i} ({n_formations} courses)',
-                alpha=0.7,
-                s=100
-            )
-            
-            # Plot cluster center
-            center = self.cluster_centers_[i]
-            ax1.scatter(
-                center[0],
-                center[1],
-                c='black',
-                marker='x',
-                s=200,
-                linewidths=3
-            )
-        
-        ax1.set_xlabel('Skill Coverage (scaled)', fontsize=12, fontweight='bold')
-        ax1.set_ylabel('Required Skills Entropy (scaled)', fontsize=12, fontweight='bold')
-        ax1.set_title('Coverage vs Required Entropy', fontsize=14, fontweight='bold')
-        ax1.grid(True, alpha=0.3, linestyle='--')
-        
-        # Plot 2: Coverage vs Provided Entropy
-        for i in range(self.n_clusters):
-            cluster_points = features_scaled[self.course_clusters == i]
-            
-            # Plot points
-            ax2.scatter(
-                cluster_points[:, 0],  # Coverage
-                cluster_points[:, 2],  # Provided Entropy
+            cluster_points = features_2d[self.course_clusters == i]
+            plt.scatter(
+                cluster_points[:, 0],
+                cluster_points[:, 1],
                 label=f'Cluster {i} ({len(cluster_points)} courses)',
                 alpha=0.7,
                 s=100
             )
-            
-            # Plot cluster center
-            center = self.cluster_centers_[i]
-            ax2.scatter(
-                center[0],
-                center[2],
-                c='black',
-                marker='x',
-                s=200,
-                linewidths=3
-            )
         
-        ax2.set_xlabel('Skill Coverage (scaled)', fontsize=12, fontweight='bold')
-        ax2.set_ylabel('Provided Skills Entropy (scaled)', fontsize=12, fontweight='bold')
-        ax2.set_title('Coverage vs Provided Entropy', fontsize=14, fontweight='bold')
-        ax2.grid(True, alpha=0.3, linestyle='--')
-        
-        # Plot 3: Required vs Provided Entropy
-        for i in range(self.n_clusters):
-            cluster_points = features_scaled[self.course_clusters == i]
-            
-            # Plot points
-            ax3.scatter(
-                cluster_points[:, 1],  # Required Entropy
-                cluster_points[:, 2],  # Provided Entropy
-                label=f'Cluster {i} ({len(cluster_points)} courses)',
-                alpha=0.7,
-                s=100
-            )
-            
-            # Plot cluster center
-            center = self.cluster_centers_[i]
-            ax3.scatter(
-                center[1],
-                center[2],
-                c='black',
-                marker='x',
-                s=200,
-                linewidths=3
-            )
-        
-        ax3.set_xlabel('Required Skills Entropy (scaled)', fontsize=12, fontweight='bold')
-        ax3.set_ylabel('Provided Skills Entropy (scaled)', fontsize=12, fontweight='bold')
-        ax3.set_title('Required vs Provided Entropy', fontsize=14, fontweight='bold')
-        ax3.grid(True, alpha=0.3, linestyle='--')
-        
-        # Create a single legend for all subplots
-        handles, labels = ax1.get_legend_handles_labels()
-        # Add total courses to the legend
-        total_formations = len(self.course_clusters)
-        handles.append(plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='none', markersize=0))
-        labels.append(f'Total Courses: {total_formations}')
-        
-        fig.legend(
-            handles, labels,
-            loc='center',
-            bbox_to_anchor=(0.5,   0.03),
-            ncol=self.n_clusters + 1,  # +1 for total courses
-            prop={'weight': 'bold', 'size': 12},
-            frameon=True,
-            framealpha=0.9,
+        # Plot cluster centers
+        centers_2d = pca.transform(self.cluster_centers_)
+        plt.scatter(
+            centers_2d[:, 0],
+            centers_2d[:, 1],
+            c='black',
+            marker='x',
+            s=200,
+            linewidths=3,
+            label='Cluster Centers'
         )
         
-        # Adjust layout to make room for the legend
-        plt.tight_layout()
-        plt.subplots_adjust(bottom=0.2)  # Make room for the legend
+        # Add labels and title
+        plt.xlabel('First Principal Component')
+        plt.ylabel('Second Principal Component')
+        plt.title('Course Clusters (PCA Visualization)')
         
-        # Save plot with high DPI for better quality
-        plot_path = os.path.join(self.clustering_dir, f'cluster_visualization_skillslevels.png')
+        # Add explained variance ratio
+        explained_variance = pca.explained_variance_ratio_
+        plt.figtext(
+            0.02, 0.02,
+            f'Explained variance: PC1={explained_variance[0]:.2%}, PC2={explained_variance[1]:.2%}',
+            fontsize=10
+        )
+        
+        # Add legend
+        plt.legend()
+        
+        # Save plot
+        plot_path = os.path.join(self.clustering_dir, f'cluster_visualization_pca.png')
         plt.savefig(plot_path, dpi=300, bbox_inches='tight')
         plt.close()
+        
+        # Print feature importance
+        print("\nFeature Importance in Principal Components:")
+        for i, component in enumerate(pca.components_):
+            print(f"\nPC{i+1}:")
+            for j, feature in enumerate(['Coverage', 'Required Entropy', 'Provided Entropy', 
+                                      'Avg Level Gap', 'Max Level Gap']):
+                print(f"{feature}: {component[j]:.3f}")
         
     def adjust_reward(self, course_idx, original_reward, prev_reward):
         """Adjust reward based on cluster membership and reward change.

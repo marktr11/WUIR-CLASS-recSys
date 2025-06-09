@@ -48,17 +48,19 @@ class CourseRecEnv(gym.Env):
         use_clustering (bool): Whether to use clustering for reward adjustment
     """
     
-    def __init__(self, dataset, threshold=0.5, k=1):
+    def __init__(self, dataset, threshold=0.5, k=1, is_training=False):
         """Initialize the course recommendation environment.
         
         Args:
             dataset: Dataset object containing learners, jobs, and courses
             threshold (float): Minimum matching score for job applicability
             k (int): Maximum number of course recommendations per learner
+            is_training (bool): Whether this is a training environment
         """
         self.dataset = dataset
         self.threshold = threshold
         self.k = k
+        self.is_training = is_training
         
         # Initialize basic attributes
         self.nb_skills = len(dataset.skills)  # 46 skills
@@ -79,15 +81,16 @@ class CourseRecEnv(gym.Env):
         self.prev_reward = None
         
         if self.use_clustering:
-            from clustering import CourseClusterer
             self.clusterer = CourseClusterer(
                 n_clusters=dataset.config.get("n_clusters", 5),
                 random_state=dataset.config.get("seed", 42),
                 auto_clusters=dataset.config.get("auto_clusters", False),
-                max_clusters=dataset.config.get("max_clusters", 10)
+                max_clusters=dataset.config.get("max_clusters", 10),
+                config=dataset.config.get("clustering", {})
             )
-            # Fit clusters to courses
-            self.clusterer.fit_course_clusters(dataset.courses)
+            # Only fit clusters in training environment
+            if self.is_training and self.clusterer.course_clusters is None:
+                self.clusterer.fit_course_clusters(dataset.courses)
         
         # Initialize environment state
         self.reset()

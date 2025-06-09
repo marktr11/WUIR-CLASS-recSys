@@ -60,8 +60,8 @@ class Reinforce:
         self.eval_freq = eval_freq
         
         # Create the training and evaluation environments
-        self.train_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k)
-        self.eval_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k)
+        self.train_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k, is_training=True)
+        self.eval_env = CourseRecEnv(dataset, threshold=self.threshold, k=self.k, is_training=False)
         self.get_model()
         
         # Check if model uses clustering based on config
