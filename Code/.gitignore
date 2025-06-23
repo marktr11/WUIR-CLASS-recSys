@@ -181,3 +181,10 @@ Newfeature_pipeline.py
 #mlflow
 mlflow/
 
+# EDA folder and its contents
+eda/
+eda/**/*
+
+# Backups
+backups/
+
