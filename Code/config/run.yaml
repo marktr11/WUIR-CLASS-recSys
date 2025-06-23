@@ -1,6 +1,6 @@
 # File: run.yaml
-# Description: Configuration file for the course recommendation system
-# Purpose: Compare models with and without clustering for reward adjustment
+# Description: Configuration file for the course recommendation system with mastery levels
+# Purpose: Configure RL models with clustering-based reward adjustment
 
 # Data Paths
 taxonomy_path: Data - Collection/Final/taxonomy.csv      # Path to skill taxonomy data
@@ -9,6 +9,7 @@ cv_path: Data - Collection/Final/resumes.json           # Path to learner profil
 job_path: Data - Collection/Final/jobs.json             # Path to job listings
 mastery_levels_path: Data - Collection/Final/mastery_levels.json  # Path to skill mastery levels
 results_path: Code/results                              # Directory for storing results
+branch_name: clusteringRL-mastery-levels                # Branch name for organizing results
 
 # Data Processing Parameters
 level_3: true                                          # Use third level of taxonomy (true) or fourth level (false)
@@ -23,48 +24,24 @@ nb_jobs: 100                                          # Number of jobs to includ
 
 # Model Parameters
 threshold: 0.8                                         # Minimum matching threshold for job eligibility
-k: 3                                                  # Number of course recommendations to generate
-model: ppo                                            # Reinforcement learning algorithm (ppo, dqn, a2c)
-total_steps: 500000                                   # Total training steps
+k: 2                                                  # Number of course recommendations to generate
+model: dqn                                            # Reinforcement learning algorithm (ppo, dqn, a2c)
+total_steps: 5000000                                # Total training steps
 eval_freq: 1000                                       # Evaluation frequency during training
 nb_runs: 1                                            # Number of independent runs
 seed: 42                                              # Random seed for reproducibility
 
-# Model Configuration
-baseline: false                                        # Model type:
-                                                       # true: Baseline model (uses number of applicable jobs as reward)
-                                                       # false: Enhanced reward model (UIR or WUIR)
-feature: "Weighted-Usefulness-as-Rwd"                  # Feature type for non-baseline model:
-                                                       # - "Usefulness-as-Rwd": Uses utility function as reward
-                                                       # - "Weighted-Usefulness-as-Rwd": Combines jobs and utility
-
 # Clustering Configuration
-use_clustering: false                                  # Whether to use clustering for reward adjustment
+use_clustering: true                                  # Whether to use clustering for reward adjustment
 auto_clusters: true                                   # Whether to automatically determine optimal number of clusters
 max_clusters: 10                                      # Maximum number of clusters to try when using elbow method
 n_clusters: 4                                         # Number of clusters for K-means clustering (used if auto_clusters=false)
 
-# Purpose
-# This configuration is designed to compare:
-# 1. Models with clustering-based reward adjustment:
-#    - Baseline: Number of applicable jobs as reward
-#    - UIR: Utility function as reward
-#    - WUIR: Weighted combination of jobs and utility
-# 2. Models without clustering (same reward types)
-# The comparison helps evaluate the impact of clustering on:
-# - Learning stability
-# - Model performance
-# - Course recommendation quality
+# Reward Adjustment Multipliers
+same_cluster_increase: 1.1                            # Multiplier for same cluster & reward increase
+same_cluster_decrease: 0.9                            # Multiplier for same cluster & reward decrease
+diff_cluster_increase: 1.3                            # Multiplier for different cluster & reward increase
+diff_cluster_decrease: 0.8                            # Multiplier for different cluster & reward decrease
 
-# Model Weights for WUIR Feature
-# These weights are used when feature="Weighted-Usefulness-as-Rwd"
-# If not specified, they will be optimized automatically
-model_weights:
-  dqn:
-    beta1: 0.1  # Weight for number of applicable jobs
-    beta2: 0.9  # Weight for utility function
-  ppo:
-    beta1: 0.1  # Weight for number of applicable jobs
-    beta2: 0.9  # Weight for utility function
 
 
