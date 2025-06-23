@@ -111,13 +111,6 @@ pip install -r requirements.txt
 ```
 
 
-### System Requirements
-
-- **Python**: 3.8 or higher
-- **Memory**: Minimum 4GB RAM (8GB recommended)
-- **Storage**: At least 1GB free space for datasets and results
-- **OS**: Windows, macOS, or Linux
-
 ## Documentation
 
 For detailed information about:
