@@ -9,26 +9,35 @@ from collections import defaultdict
 import matchings
 
 
-class Dataset: #modified class
+class Dataset:
     """Dataset class for the course recommendation system.
     
     This class handles data loading, processing, and analysis for the recommendation system.
-    It manages three main types of data:
-    - Learner profiles and their skills
-    - Job requirements and their required skills
-    - Course information including required and provided skills
+    It manages three main types of data with mastery levels:
+    - Learner profiles and their skill mastery levels (1-3)
+    - Job requirements and their required skill levels (1-3)
+    - Course information including:
+        * Required skill levels (prerequisites)
+        * Provided skill levels (learning outcomes)
     
-    The class implements the No-Mastery-Levels approach, where skills are represented
-    in a binary format (0/1) instead of using mastery levels.
+    The class implements the Mastery-Levels approach, where skills are represented
+    with different levels of proficiency (1-3) instead of binary values.
     """
-    # The Dataset class is used to load and store the data of the recommendation problem
     def __init__(self, config):
+        """Initialize the Dataset with configuration parameters.
+        
+        Args:
+            config (dict): Configuration dictionary containing:
+                - Data paths (taxonomy, courses, resumes, jobs)
+                - Processing parameters (level_3, max_cv_skills)
+                - Dataset size parameters (nb_courses, nb_cvs, nb_jobs)
+                - Random seed for reproducibility
+        """
         self.config = config
         self.load_data()
         self.get_jobs_inverted_index()
 
     def __str__(self):
-        # override the __str__ method to print the dataset
         return (
             f"Dataset with {len(self.learners)} learners, "
             f"{len(self.jobs)} jobs, "
@@ -41,9 +50,9 @@ class Dataset: #modified class
         self.rng = random.Random(self.config["seed"])
         self.load_skills() 
         self.load_mastery_levels()
-        self.load_learners() #modify
-        self.load_jobs() #modify
-        self.load_courses() #modify
+        self.load_learners()
+        self.load_jobs()
+        self.load_courses()
         self.get_subsample()
         self.make_course_consistent()
         
@@ -70,29 +79,26 @@ class Dataset: #modified class
         # load the skills from the taxonomy file
         self.skills = pd.read_csv(self.config["taxonomy_path"])
 
-        # if level_3 is true, we only use the level 3 of the skill taxonomy, then we need to get the unique values in column Type Level 3
-        ## Note: A single taxonomy skill may be shared across multiple skills. Using Level 3 taxonomy is preferred
+        # If level_3 is true, we only use the level 3 of the skill taxonomy
+        # Note: A single taxonomy skill may be shared across multiple skills. Using Level 3 taxonomy is preferred
         # as it maintains effective skill categorization. Levels 1 or 2 are too broad, resulting in overly general domains.
         if self.config["level_3"]:
-            # get all the unique values in column Type Level 3
+            # Get all the unique values in column Type Level 3
             level2int = {
                 level: i for i, level in enumerate(self.skills["Type Level 3"].unique())
             }
 
-            # make a dict from column unique_id to column Type Level 3
+            # Make a dict from column unique_id to column Type Level 3
             skills_dict = dict(
                 zip(self.skills["unique_id"], self.skills["Type Level 3"])
             )
 
-            # map skills_dict values to level2int
+            # Map skills_dict values to level2int
             self.skills2int = {
                 key: level2int[value] for key, value in skills_dict.items()
             }
             self.skills = set(self.skills2int.values())
-            #print(level2int) #output : software and applications development and analysis : 0
-            #print(skills_dict) #output : 1000: software and applications development and analysis
-            #print(skills2int) #output : 1000: 0
-        # if level_3 is false, we use the unique_id column as the skills
+        # If level_3 is false, we use the unique_id column as the skills
         else:
             self.skills = set(self.skills["unique_id"])
             self.skills2int = {skill: i for i, skill in enumerate(self.skills)}
@@ -104,21 +110,21 @@ class Dataset: #modified class
     def get_avg_skills(self, skill_list, replace_unk):
         avg_skills = defaultdict(list)
         for skill, mastery_level in skill_list:
-            # if the mastery level is a string and is in the mastery levels, we replace it with the corresponding value, otherwise we do nothing and continue to the next skill
+            # If the mastery level is a string and is in the mastery levels, we replace it with the corresponding value
             if isinstance(mastery_level, str) and mastery_level in self.mastery_levels:
                 mastery_level = self.mastery_levels[mastery_level]
                 if mastery_level == -1:
                     mastery_level = replace_unk
                 skill = self.skills2int[skill]  
                 avg_skills[skill].append(mastery_level)
-        # we take the average of the mastery levels for each skill because on our dataset we can have multiple mastery levels for the same skill
+        # We take the average of the mastery levels for each skill because on our dataset we can have multiple mastery levels for the same skill
         for skill in avg_skills.keys():
             avg_skills[skill] = sum(avg_skills[skill]) / len(avg_skills[skill])
             avg_skills[skill] = round(avg_skills[skill])
 
         return avg_skills
 
-    def get_base_skills(self,skill_list): #new feature
+    def get_base_skills(self,skill_list):
         """
         Convert a learner's list of type-4 skills to a unique set of type-3 base skills.
 
@@ -133,13 +139,9 @@ class Dataset: #modified class
         """
         base_skills = set()
         for skill, mastery_level in skill_list:
-            # if the mastery level is a string and is in the mastery levels, we replace it with the corresponding value, otherwise we do nothing and continue to the next skill
-            # we keep it to maintain consistency with the original version, which uses this condition.
+            # If the mastery level is a string and is in the mastery levels, we replace it with the corresponding value
             if isinstance(mastery_level, str) and mastery_level in self.mastery_levels:
-                #eg. skill = 1024 , mastery_level = 'beginner'
-                # mapping to an integer which is the id of taxonomy level
-                # Mapping skills type 4 of learners to type 3, 
-                # so the number of skills may be less than or equal to the original number of skills
+                # Mapping skills type 4 of learners to type 3
                 try:
                     base_skills.add(self.skills2int[skill])
                 except KeyError:
@@ -149,46 +151,53 @@ class Dataset: #modified class
         return base_skills
     
 
-    def load_learners(self,replace_unk=1): #### Function modified
-        """Load the learners from the file specified in the config and store it in the class attribute
+    def load_learners(self, replace_unk=1):
+        """Load and process learner profiles from the CV data.
+        
+        This method:
+        1. Loads learner profiles from JSON file
+        2. Converts type-4 skills to type-3 base skills with their mastery levels
+        3. Creates a skill matrix where:
+           - Rows represent learners
+           - Columns represent skills
+           - Values represent mastery levels (1-3)
+        4. Filters out learners with too many skills
+        5. Creates bidirectional mapping between learner IDs and matrix indices
 
         Args:
-            replace_unk (int, optional): The value to replace the unknown mastery levels. Defaults to 1.
+            replace_unk (int, optional): The value to replace unknown mastery levels. Defaults to 1.
         """
         learners = json.load(open(self.config["cv_path"]))
         self.max_learner_skills = self.config["max_cv_skills"]
         self.learners_index = dict()
 
-        # numpy array to store the learners skill proficiency levels with default value 0
+        # Initialize skill matrix with zeros
         self.learners = np.zeros((len(learners), len(self.skills)), dtype=int)
         index = 0
 
-        # fill the numpy array with the learners skill proficiency levels from the json file
         for learner_id, learner in learners.items():
+            # Get average skill levels for each skill
+            learner_skills = self.get_avg_skills(learner, replace_unk)
 
-
-            learner_base_skills = self.get_base_skills(learner) #remove expertise
-            learner_skills = {skill: 1 for skill in learner_base_skills}
-            
-
-            # if the number of skills is greater than the max_learner_skills, we skip the learner
+            # Skip learners with too many skills
             if len(learner_skills) > self.max_learner_skills:
                 continue
 
-            # we fill the numpy array with the averaged mastery levels
+            # Fill skill matrix with mastery levels
             for skill, level in learner_skills.items():
                 self.learners[index][skill] = level
 
+            # Create bidirectional mapping between learner ID and matrix index
             self.learners_index[index] = learner_id
-            self.learners_index[learner_id] = index #????? why 
+            self.learners_index[learner_id] = index
 
             index += 1
 
-        # we update the learners numpy array with the correct number of rows
+        # Trim matrix to actual number of learners
         self.learners = self.learners[:index]
 
 
-    def load_jobs(self,replace_unk=3):
+    def load_jobs(self, replace_unk=3):
         """Load the jobs from the file specified in the config and store it in the class attribute.
         Only jobs with at least one required skill are kept.
 
@@ -203,16 +212,14 @@ class Dataset: #modified class
             self.jobs_index[index] = job_id
             self.jobs_index[job_id] = index
 
-            job_base_skills = self.get_base_skills(job)
-            job_skills = {skill: 1 for skill in job_base_skills}
+            # Get average skill levels for each skill
+            job_skills = self.get_avg_skills(job, replace_unk)
 
             for skill, level in job_skills.items():
                 self.jobs[index][skill] = level
             index += 1
 
-       
-
-    def load_courses(self,replace_unk=2):
+    def load_courses(self, replace_unk=2):
         """Load the courses from the file specified in the config and store it in the class attribute.
         Only courses with at least one provided skill are kept.
 
@@ -231,20 +238,14 @@ class Dataset: #modified class
             self.courses_index[course_id] = index
             self.courses_index[index] = course_id
 
-
-
-            provided_base_skills = self.get_base_skills(course["to_acquire"]) #remove expertise
-            provided_skills = {skill: 1 for skill in provided_base_skills}
-
+            # Get average skill levels for provided skills
+            provided_skills = self.get_avg_skills(course["to_acquire"], replace_unk)
             for skill, level in provided_skills.items():
                 self.courses[index][1][skill] = level
 
             # Process required skills if they exist
             if "required" in course:
-
-                required_base_skills = self.get_base_skills(course["required"])
-                required_skills = {skill: 1 for skill in required_base_skills}
-
+                required_skills = self.get_avg_skills(course["required"], replace_unk)
                 for skill, level in required_skills.items():
                     self.courses[index][0][skill] = level
 
@@ -294,12 +295,11 @@ class Dataset: #modified class
                 required_level = course[0][skill_id]
                 provided_level = course[1][skill_id]
 
-                # Case 1: Course both requires and provides the skill
-                if provided_level > 0 and required_level > 0:
-                    course[0][skill_id] = 0
-                # Case 2: Course requires but doesn't provide the skill (inconsistent case)
-                elif required_level > 0 and provided_level == 0:
-                    course[0][skill_id] = 0
+                if provided_level != 0 and provided_level <= required_level:
+                    if provided_level == 1:
+                        course[0][skill_id] = 0
+                    else:
+                        course[0][skill_id] = provided_level - 1
 
                 
 
@@ -351,96 +351,6 @@ class Dataset: #modified class
         avg_applicable_jobs /= len(self.learners)
         return avg_applicable_jobs
 
-    def get_all_enrollable_courses(self, learner, threshold): #not used for REINFORCE
-        """Get all the enrollable courses for a learner in binary case.
-        Since required skills are handled in make_course_consistent(), we only need to check
-        if the course provides any new skills that the learner doesn't have.
-
-        Args:
-            learner (list): list of skills and mastery level of the learner
-
-        Returns:
-            dict: dictionary of enrollable courses
-        """
-        enrollable_courses = {}
-        for i, course in enumerate(self.courses):
-            provided_matching = matchings.learner_course_provided_matching(
-                learner, course
-            )
-            # Only check if the course provides any new skills
-            if provided_matching < 1.0 and provided_matching > 0.0:  # Learner doesn't have all skills the course provides and the course provides at least one skill
-                enrollable_courses[i] = course
-        return enrollable_courses
-
-    def get_learner_acquired_skills(self, learner):
-        """Get the skills that a learner currently possesses.
-        
-        Args:
-            learner (np.ndarray): Learner's skill vector where 1 indicates
-                                possession of a skill and 0 indicates absence.
-            
-        Returns:
-            set: Set of skill indices that the learner has acquired (value = 1)
-        """
-        return set(np.nonzero(learner)[0])
-
-    def get_learner_missing_skills(self, learner):
-        """Identify skills that a learner needs to acquire to be eligible for jobs.
-        
-        This function analyzes the gap between a learner's current skills and
-        the skills required by available jobs. It helps identify which skills
-        the learner should acquire to improve their job eligibility.
-        
-        Args:
-            learner (np.ndarray): Learner's skill vector where 1 indicates
-                                possession of a skill and 0 indicates absence.
-            
-        Returns:
-            set: Set of distinct skill indices that the learner needs to learn
-                 to be eligible for jobs. These are skills required by jobs but
-                 not currently possessed by the learner.
-        """
-        # Get learner's current skills
-        learner_skills = self.get_learner_acquired_skills(learner)
-        
-        # Get all required skills from jobs
-        job_required_skills = set()
-        for job in self.jobs:
-            job_skills = set(np.nonzero(job)[0])
-            job_required_skills.update(job_skills)
-        
-        # Get missing skills (skills required by jobs but not possessed by learner)
-        missing_skills = job_required_skills - learner_skills
-        
-        return missing_skills
-
-    def get_learner_missing_skills_with_frequency(self, learner):
-        """Analyze the frequency of missing skills in job requirements.
-        
-        This function extends get_learner_missing_skills by adding frequency analysis.
-        It helps prioritize which missing skills are most in demand in the job market.
-        
-        Args:
-            learner (np.ndarray): Learner's skill vector where 1 indicates
-                                possession of a skill and 0 indicates absence.
-            
-        Returns:
-            dict: Dictionary mapping skill indices to their frequency in job requirements.
-                 Higher frequency indicates higher demand for that skill in the job market.
-        """
-        # Get learner's current skills
-        learner_skills = self.get_learner_acquired_skills(learner)
-        
-        # Count frequency of each skill in job requirements
-        skill_frequency = defaultdict(int)
-        for job in self.jobs:
-            job_skills = set(np.nonzero(job)[0])
-            for skill in job_skills:
-                if skill not in learner_skills:
-                    skill_frequency[skill] += 1
-        
-        return dict(skill_frequency)
-
     def get_learner_attractiveness(self, learner):
         """Calculate a learner's attractiveness in the job market.
         
@@ -479,13 +389,5 @@ class Dataset: #modified class
         attractiveness /= len(self.learners)
         return attractiveness
 
-    def get_learner_base_skills(self, learner):
-        """Get the base skills (indices) that a learner has.
-        
-        Args:
-            learner (np.ndarray): Learner's skill vector
-            
-        Returns:
-            set: Set of skill indices that the learner has (value = 1)
-        """
-        return set(np.nonzero(learner)[0])
+
+    
