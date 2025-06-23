@@ -31,6 +31,7 @@ This document provides detailed information for developers working on the course
    - Manages configuration and logging
    - Handles results storage and visualization
    - Supports multiple k values (1,2,3,...)
+   - **Note:** Only the Reinforce-based RL pipeline is supported. Greedy/Optimal methods have been removed.
 
 ## Clustering Implementation
 
@@ -44,16 +45,9 @@ The system uses K-means clustering to group similar courses based on their skill
 ### Reward Adjustment Rules
 The clustering mechanism modifies rewards based on cluster transitions:
 1. **Same Cluster & Reward Increase**: Moderate encouragement (x1.1)
-   - Encourages continued exploration within successful clusters
-   - Reduced from 1.2 to make it easier for k=3 to overcome
 2. **Same Cluster & Reward Decrease**: Light penalty (x0.9)
-   - Slightly discourages actions that decrease reward within same cluster
 3. **Different Cluster & Reward Increase**: Strong encouragement (x1.3)
-   - Encourages exploration of new clusters when improvements are found
-   - Reduced from 1.5 to prevent over-exploration
 4. **Different Cluster & Reward Decrease**: Moderate penalty (x0.8)
-   - Discourages actions that decrease reward when switching clusters
-   - Increased from 0.7 to reduce penalty severity
 
 ### Clustering Process
 1. **Feature Extraction**:
@@ -102,9 +96,6 @@ max_clusters: 10
 Code/results/
 ├── [branch_name]/      # Results for specific branch
 │   ├── plots/          # Plot files
-│   │   ├── individual/ # Individual learning curves
-│   │   ├── comparison/ # Model comparison plots
-│   │   └── clustering/ # Clustering effect plots
 │   └── data/           # Training data
 └── backups/            # Backup directories
 ```
@@ -160,7 +151,7 @@ python Code/manage_results.py clean [branch_name]
    - Keep track of k values in filenames
 
 2. **Model Training**:
-   - Each model should be trained separately
+   - Each RL model (DQN, PPO, A2C) should be trained separately
    - Compare results between versions
    - Save used hyperparameters
    - Monitor clustering performance

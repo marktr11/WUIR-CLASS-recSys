@@ -23,7 +23,6 @@ class Dataset:
     The class implements the Mastery-Levels approach, where skills are represented
     with different levels of proficiency (1-3) instead of binary values.
     """
-    # The Dataset class is used to load and store the data of the recommendation problem
     def __init__(self, config):
         """Initialize the Dataset with configuration parameters.
         
@@ -39,7 +38,6 @@ class Dataset:
         self.get_jobs_inverted_index()
 
     def __str__(self):
-        # override the __str__ method to print the dataset
         return (
             f"Dataset with {len(self.learners)} learners, "
             f"{len(self.jobs)} jobs, "
@@ -52,9 +50,9 @@ class Dataset:
         self.rng = random.Random(self.config["seed"])
         self.load_skills() 
         self.load_mastery_levels()
-        self.load_learners() #modify
-        self.load_jobs() #modify
-        self.load_courses() #modify
+        self.load_learners()
+        self.load_jobs()
+        self.load_courses()
         self.get_subsample()
         self.make_course_consistent()
         
@@ -81,29 +79,26 @@ class Dataset:
         # load the skills from the taxonomy file
         self.skills = pd.read_csv(self.config["taxonomy_path"])
 
-        # if level_3 is true, we only use the level 3 of the skill taxonomy, then we need to get the unique values in column Type Level 3
-        ## Note: A single taxonomy skill may be shared across multiple skills. Using Level 3 taxonomy is preferred
+        # If level_3 is true, we only use the level 3 of the skill taxonomy
+        # Note: A single taxonomy skill may be shared across multiple skills. Using Level 3 taxonomy is preferred
         # as it maintains effective skill categorization. Levels 1 or 2 are too broad, resulting in overly general domains.
         if self.config["level_3"]:
-            # get all the unique values in column Type Level 3
+            # Get all the unique values in column Type Level 3
             level2int = {
                 level: i for i, level in enumerate(self.skills["Type Level 3"].unique())
             }
 
-            # make a dict from column unique_id to column Type Level 3
+            # Make a dict from column unique_id to column Type Level 3
             skills_dict = dict(
                 zip(self.skills["unique_id"], self.skills["Type Level 3"])
             )
 
-            # map skills_dict values to level2int
+            # Map skills_dict values to level2int
             self.skills2int = {
                 key: level2int[value] for key, value in skills_dict.items()
             }
             self.skills = set(self.skills2int.values())
-            #print(level2int) #output : software and applications development and analysis : 0
-            #print(skills_dict) #output : 1000: software and applications development and analysis
-            #print(skills2int) #output : 1000: 0
-        # if level_3 is false, we use the unique_id column as the skills
+        # If level_3 is false, we use the unique_id column as the skills
         else:
             self.skills = set(self.skills["unique_id"])
             self.skills2int = {skill: i for i, skill in enumerate(self.skills)}
@@ -115,21 +110,21 @@ class Dataset:
     def get_avg_skills(self, skill_list, replace_unk):
         avg_skills = defaultdict(list)
         for skill, mastery_level in skill_list:
-            # if the mastery level is a string and is in the mastery levels, we replace it with the corresponding value, otherwise we do nothing and continue to the next skill
+            # If the mastery level is a string and is in the mastery levels, we replace it with the corresponding value
             if isinstance(mastery_level, str) and mastery_level in self.mastery_levels:
                 mastery_level = self.mastery_levels[mastery_level]
                 if mastery_level == -1:
                     mastery_level = replace_unk
                 skill = self.skills2int[skill]  
                 avg_skills[skill].append(mastery_level)
-        # we take the average of the mastery levels for each skill because on our dataset we can have multiple mastery levels for the same skill
+        # We take the average of the mastery levels for each skill because on our dataset we can have multiple mastery levels for the same skill
         for skill in avg_skills.keys():
             avg_skills[skill] = sum(avg_skills[skill]) / len(avg_skills[skill])
             avg_skills[skill] = round(avg_skills[skill])
 
         return avg_skills
 
-    def get_base_skills(self,skill_list): #new feature
+    def get_base_skills(self,skill_list):
         """
         Convert a learner's list of type-4 skills to a unique set of type-3 base skills.
 
@@ -144,13 +139,9 @@ class Dataset:
         """
         base_skills = set()
         for skill, mastery_level in skill_list:
-            # if the mastery level is a string and is in the mastery levels, we replace it with the corresponding value, otherwise we do nothing and continue to the next skill
-            # we keep it to maintain consistency with the original version, which uses this condition.
+            # If the mastery level is a string and is in the mastery levels, we replace it with the corresponding value
             if isinstance(mastery_level, str) and mastery_level in self.mastery_levels:
-                #eg. skill = 1024 , mastery_level = 'beginner'
-                # mapping to an integer which is the id of taxonomy level
-                # Mapping skills type 4 of learners to type 3, 
-                # so the number of skills may be less than or equal to the original number of skills
+                # Mapping skills type 4 of learners to type 3
                 try:
                     base_skills.add(self.skills2int[skill])
                 except KeyError:
@@ -360,28 +351,6 @@ class Dataset:
         avg_applicable_jobs /= len(self.learners)
         return avg_applicable_jobs
 
-    def get_all_enrollable_courses(self, learner, threshold):
-        """Get all the enrollable courses for a learner
-
-        Args:
-            learner (list): list of skills and mastery level of the learner
-            threshold (float): the threshold for the matching
-
-        Returns:
-            dict: dictionary of enrollable courses
-        """
-        enrollable_courses = {}
-        for i, course in enumerate(self.courses):
-            required_matching = matchings.learner_course_required_matching(
-                learner, course
-            )
-            provided_matching = matchings.learner_course_provided_matching(
-                learner, course
-            )
-            if required_matching >= threshold and provided_matching < 1.0:
-                enrollable_courses[i] = course
-        return enrollable_courses
-
     def get_learner_attractiveness(self, learner):
         """Calculate a learner's attractiveness in the job market.
         
@@ -419,17 +388,6 @@ class Dataset:
             attractiveness += self.get_learner_attractiveness(learner)
         attractiveness /= len(self.learners)
         return attractiveness
-
-    def get_learner_base_skills(self, learner):
-        """Get the base skills (indices) that a learner has.
-        
-        Args:
-            learner (np.ndarray): Learner's skill vector
-            
-        Returns:
-            set: Set of skill indices that the learner has (value = 1)
-        """
-        return set(np.nonzero(learner)[0])
 
 
     

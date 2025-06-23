@@ -99,8 +99,14 @@ def ensure_branch_directories():
     """
     current_branch = get_current_branch()
     
-    # Define paths
-    base_dir = "results"  # Changed from "Code/results"
+    # Define paths - check if we're in Code directory or root
+    if os.path.exists("results"):
+        base_dir = "results"  # We're in root directory
+    elif os.path.exists("Code/results"):
+        base_dir = "Code/results"  # We're in root directory
+    else:
+        base_dir = "results"  # Default, will create in current directory
+    
     branch_dir = os.path.join(base_dir, current_branch)
     plots_dir = os.path.join(branch_dir, "plots")
     data_dir = os.path.join(branch_dir, "data")
@@ -123,7 +129,14 @@ def list_branch_results():
         Only counts files in plots/ and data/ subdirectories.
         Other files in branch directory are ignored.
     """
-    base_dir = "results"  # Changed from "Code/results"
+    # Check if we're in Code directory or root
+    if os.path.exists("results"):
+        base_dir = "results"  # We're in root directory
+    elif os.path.exists("Code/results"):
+        base_dir = "Code/results"  # We're in root directory
+    else:
+        base_dir = "results"  # Default, will create in current directory
+    
     # Create base directory if it doesn't exist
     os.makedirs(base_dir, exist_ok=True)
         
