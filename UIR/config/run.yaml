@@ -31,10 +31,10 @@ nb_runs: 1                                            # Number of independent ru
 seed: 42                                              # Random seed for reproducibility
 
 # Model Configuration
-baseline: True                                        # Model type:
+baseline: false                                        # Model type:
                                                        # true: Baseline model (skip-expertise only)
                                                        # false: Enhanced model with mastery levels and clustering
-feature: "Usefulness-as-Rwd"                         # Feature type for non-baseline model 
+feature: "Weighted-Usefulness-as-Rwd"                         # Feature type for non-baseline model 
 #options: "Usefulness-as-Rwd" or "Weighted-Usefulness-as-Rwd"
 
 # Purpose
