@@ -124,3 +124,9 @@ For detailed information about:
 Please refer to:
 - `JCREC-CourseCLF/README_DEVELOPMENT.md` for clustering-based approach
 - `UIR/README_DEVELOPMENT.md` for usefulness-based approach 
+
+## Acknowledgements
+
+This project is developed based on the repository [JCRec](https://github.com/Jibril-Frej/JCRec) by [Jibril Frej](https://github.com/Jibril-Frej).
+
+Note: The original repository does not specify a license. Please refer to their repository for more details.
