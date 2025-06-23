@@ -1,0 +1,55 @@
+# File: run.yaml
+# Description: Configuration file for the course recommendation system
+# Purpose: Compare different approaches for course recommendation with mastery levels and clustering
+
+# Data Paths
+taxonomy_path: Data - Collection/Final/taxonomy.csv      # Path to skill taxonomy data
+course_path: Data - Collection/Final/courses.json        # Path to course data
+cv_path: Data - Collection/Final/resumes.json           # Path to learner profiles
+job_path: Data - Collection/Final/jobs.json             # Path to job listings
+mastery_levels_path: Data - Collection/Final/mastery_levels.json  # Path to skill mastery levels
+results_path: UIR/results                              # Directory for storing results
+
+# Data Processing Parameters
+level_3: true                                          # Use third level of taxonomy (true) or fourth level (false)
+                                                       # True: fewer, more general skills
+                                                       # False: more specific skills
+
+# Dataset Size Parameters
+nb_courses: 100                                        # Number of courses to include in the dataset
+nb_cvs: -1                                            # Number of learner profiles to use (-1 for all)
+max_cv_skills: 15                                     # Maximum number of skills per learner profile
+nb_jobs: 100                                          # Number of jobs to include in the dataset
+
+# Model Parameters
+threshold: 0.8                                         # Minimum matching threshold for job eligibility
+k: 2                                                 # Number of course recommendations to generate
+model: dqn                                          # Reinforcement learning algorithm (DQN, PPO, A2C)
+total_steps: 500000                                   # Total training steps
+eval_freq: 1000                                       # Evaluation frequency during training
+nb_runs: 1                                            # Number of independent runs
+seed: 42                                              # Random seed for reproducibility
+
+# Model Configuration
+baseline: True                                        # Model type:
+                                                       # true: Baseline model (skip-expertise only)
+                                                       # false: Enhanced model with mastery levels and clustering
+feature: "Usefulness-as-Rwd"                         # Feature type for non-baseline model 
+#options: "Usefulness-as-Rwd" or "Weighted-Usefulness-as-Rwd"
+
+# Purpose
+# This configuration is designed to compare different approaches:
+# 1. Baseline model: Skip-expertise-only approach (no mastery levels)
+# 2. Enhanced model: Mastery levels with clustering and Usefulness as reward
+# 3. Advanced model: Weighted combination of job applicability and skill development
+
+# Model Hyperparameters for feature "Weighted-Usefulness-as-Rwd"
+model_weights:
+  dqn:
+    beta1: 0.1                                        # Weight for job applications in reward calculation
+    beta2: 0.9                                        # Weight for utility in reward calculation
+  ppo:
+    beta1: 0.1                                        # Weight for job applications in reward calculation
+    beta2: 0.9                                        # Weight for utility in reward calculation
+
+
