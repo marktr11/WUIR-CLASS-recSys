@@ -335,7 +335,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run recommender models.")
 
     parser.add_argument(
-        "--config", help="Path to the configuration file", default="Code/config/run.yaml"
+        "--config", help="Path to the configuration file", default="UIR/config/run.yaml"
     )
     args = parser.parse_args()
 
