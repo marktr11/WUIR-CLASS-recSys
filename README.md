@@ -6,7 +6,7 @@ A reinforcement learning-based course recommendation system that helps learners 
 
 This system uses reinforcement learning to recommend courses to learners based on their current skills and job market requirements. It operates with two different approaches:
 
-1. **JCREC-CourseCLF**: Clustering-based approach
+1. **CLASS**: Clustering-based approach
    - Groups similar courses using K-means clustering
    - Adjusts rewards based on cluster transitions
    - Encourages stable learning patterns within course clusters
@@ -29,14 +29,14 @@ This system uses reinforcement learning to recommend courses to learners based o
   - **Clustering-based**: K-means clustering for course grouping and reward adjustment
   - **Usefulness-based**: Information utility maximization with weighted rewards
 - Comprehensive evaluation metrics
-- Automatic cluster optimization using elbow method (JCREC-CourseCLF)
+- Automatic cluster optimization using elbow method (CLASS)
 - Weight optimization for usefulness-based rewards (UIR)
 
 ## Project Structure
 
 ```
 Project/
-├── JCREC-CourseCLF/          # Clustering-based approach
+├── CLASS/                      # Clustering-based approach
 │   ├── Scripts/              # Core recommendation system
 │   │   ├── CourseRecEnv.py   # RL environment with clustering
 │   │   ├── Reinforce.py      # RL implementation
@@ -65,11 +65,11 @@ Project/
 
 ## Quick Start
 
-### JCREC-CourseCLF (Clustering-based)
+### CLASS (Clustering-based)
 
 1. Install requirements:
 ```bash
-cd JCREC-CourseCLF
+cd CLASS
 pip install -r requirements.txt
 ```
 
@@ -110,6 +110,35 @@ python Scripts/pipeline.py --config config/run.yaml
 pip install -r requirements.txt
 ```
 
+### Dependencies
+
+The project requires the following Python packages:
+
+**Core ML/RL Libraries:**
+- `stable-baselines3==2.2.1` - Reinforcement learning algorithms (DQN, PPO, A2C)
+- `gymnasium>=0.28.0` - RL environment interface (compatible with stable-baselines3)
+- `scikit-learn>=1.0.0` - Machine learning utilities (K-means clustering, PCA)
+
+**Data Processing:**
+- `numpy>=1.21.0` - Numerical computing
+- `pandas>=1.3.0` - Data manipulation and analysis
+
+**Visualization:**
+- `matplotlib>=3.5.0` - Plotting and visualization
+- `seaborn>=0.11.0` - Statistical data visualization
+
+**Configuration:**
+- `PyYAML==6.0.1` - YAML configuration files
+
+**Utilities:**
+- `tqdm>=4.62.0` - Progress bars for weight optimization and long-running operations
+
+### System Requirements
+
+- **Python**: 3.8 or higher
+- **Memory**: Minimum 4GB RAM (8GB recommended)
+- **Storage**: At least 1GB free space for datasets and results
+- **OS**: Windows, macOS, or Linux
 
 ## Documentation
 
@@ -117,13 +146,13 @@ For detailed information about:
 - Development setup and guidelines
 - Configuration options
 - Results management
-- Clustering implementation (JCREC-CourseCLF)
+- Clustering implementation (CLASS)
 - Usefulness-based approach (UIR)
 - Model training and evaluation
 
 Please refer to:
-- `JCREC-CourseCLF/README_DEVELOPMENT.md` for clustering-based approach
-- `UIR/README_DEVELOPMENT.md` for usefulness-based approach 
+- `CLASS/README_DEVELOPMENT.md` for clustering-based approach
+- `UIR/README_DEVELOPMENT.md` for usefulness-based approach
 
 ## Acknowledgements
 

@@ -8,7 +8,7 @@ course_path: Data - Collection/Final/courses.json        # Path to course data
 cv_path: Data - Collection/Final/resumes.json           # Path to learner profiles
 job_path: Data - Collection/Final/jobs.json             # Path to job listings
 mastery_levels_path: Data - Collection/Final/mastery_levels.json  # Path to skill mastery levels
-results_path: JCREC-CourseCLF/results                              # Directory for storing results
+results_path: CLASS/results                              # Directory for storing results
 branch_name: clusteringRL-mastery-levels                # Branch name for organizing results
 
 # Data Processing Parameters
@@ -39,9 +39,11 @@ n_clusters: 4                                         # Number of clusters for K
 
 # Reward Adjustment Multipliers
 same_cluster_increase: 1.1                            # Multiplier for same cluster & reward increase
-same_cluster_decrease: 0.9                            # Multiplier for same cluster & reward decrease
+same_cluster_decrease: 0.9                            # Multiplier for same cluster & reward decrease (CLASS-v1 model - not used in current implementation)
 diff_cluster_increase: 1.3                            # Multiplier for different cluster & reward increase
-diff_cluster_decrease: 0.8                            # Multiplier for different cluster & reward decrease
+diff_cluster_decrease: 0.8                            # Multiplier for different cluster & reward decrease (CLASS-v1 model - not used in current implementation)
+
+
 
 
 

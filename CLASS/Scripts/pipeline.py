@@ -38,7 +38,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run recommender models.")
 
     parser.add_argument(
-        "--config", help="Path to the configuration file", default=r"JCREC-CourseCLF/config/run.yaml"
+        "--config", help="Path to the configuration file", default=r"CLASS/config/run.yaml"
     )
 
     args = parser.parse_args()

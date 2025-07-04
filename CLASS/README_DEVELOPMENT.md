@@ -103,7 +103,7 @@ max_clusters: 10
 
 ### Directory Structure
 ```
-JCREC-CourseCLF/results/
+CLASS/results/
 ├── [branch_name]/      # Results for specific branch
 │   ├── plots/          # Plot files
 │   └── data/           # Training data
