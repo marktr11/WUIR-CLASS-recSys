@@ -3,40 +3,26 @@ Clustering Module for Course Recommendation System
 
 This module implements clustering functionality to improve RL performance by adjusting rewards
 based on course cluster membership. The clustering helps identify similar courses based on their
-provided skills, which is then used to modify the reward signal to encourage more stable learning.
+required and provided skills, which is then used to modify the reward signal to encourage more stable learning.
 
-The reward adjustment follows these rules:
-1. Same cluster & reward increase: Moderate encouragement (x1.1)
+The clustering is based on five key features for each course:
+1. Coverage: Overall skill coverage ratio (average of required and provided skill coverage)
+2. Required Entropy: Diversity of required skills (entropy-based measure)
+3. Provided Entropy: Diversity of provided skills (entropy-based measure)
+4. Avg Level Gap: Average difference between required and provided skill levels
+5. Max Level Gap: Maximum difference between required and provided skill levels
+
+The reward adjustment follows these rules (note: reward decrease penalties from CLASS-v1 are not applied):
+1. First recommendation in any sequence: Strong encouragement (x1.3) to encourage exploration
+2. Better than best reward & same cluster: Moderate encouragement (x1.1)
    - Encourages the agent to continue exploring within the same cluster when it's working well
-   - Reduced from 1.2 to make it easier for k=3 to overcome
-2. Same cluster & reward decrease: Light penalty (x0.9)
-   - Slightly discourages actions that decrease reward within the same cluster
-3. Different cluster & reward increase: Strong encouragement (x1.3)
+3. Better than best reward & different cluster: Strong encouragement (x1.3)
    - Encourages the agent to explore new clusters when it finds improvements
-   - Reduced from 1.5 to prevent over-exploration
-4. Different cluster & reward decrease: Moderate penalty (x0.8)
-   - Discourages actions that decrease reward when switching clusters
-   - Increased from 0.7 to reduce penalty severity
+4. Not better than best reward: Neutral multiplier (x1.0)
+   
 
-The clustering is based on two key metrics for each course:
-1. Skill Coverage: The percentage of total skills that the course provides
-2. Skill Diversity: An entropy-based measure of how evenly distributed the course's skills are
 
-Example:
-    ```python
-    # Initialize clusterer
-    clusterer = CourseClusterer(n_clusters=5, random_state=42, auto_clusters=True)
-    
-    # Fit clusters to courses
-    clusterer.fit_course_clusters(courses)
-    
-    # Adjust reward based on clustering
-    adjusted_reward = clusterer.adjust_reward(
-        course_idx=0,
-        original_reward=1.0,
-        prev_reward=0.8
-    )
-    ```
+
 """
 
 import numpy as np
