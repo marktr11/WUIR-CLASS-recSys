@@ -69,7 +69,6 @@ Project/
 
 1. Install requirements:
 ```bash
-cd CLASS
 pip install -r requirements.txt
 ```
 
@@ -80,6 +79,7 @@ pip install -r requirements.txt
 
 3. Run the pipeline:
 ```bash
+cd UIR
 python Scripts/pipeline.py --config config/run.yaml
 ```
 
@@ -87,7 +87,6 @@ python Scripts/pipeline.py --config config/run.yaml
 
 1. Install requirements:
 ```bash
-cd UIR
 pip install -r requirements.txt
 ```
 
@@ -98,17 +97,11 @@ pip install -r requirements.txt
 
 3. Run the pipeline:
 ```bash
+cd UIR
 python Scripts/pipeline.py --config config/run.yaml
 ```
 
 ## Requirements
-
-### Installation
-
-1. **Install dependencies:**
-```bash
-pip install -r requirements.txt
-```
 
 ### Dependencies
 
@@ -132,13 +125,6 @@ The project requires the following Python packages:
 
 **Utilities:**
 - `tqdm>=4.62.0` - Progress bars for weight optimization and long-running operations
-
-### System Requirements
-
-- **Python**: 3.8 or higher
-- **Memory**: Minimum 4GB RAM (8GB recommended)
-- **Storage**: At least 1GB free space for datasets and results
-- **OS**: Windows, macOS, or Linux
 
 ## Documentation
 

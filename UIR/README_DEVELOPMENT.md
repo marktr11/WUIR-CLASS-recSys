@@ -82,6 +82,7 @@ UIR/
 
 1. **Run Weight Optimization**:
    ```bash
+   cd UIR
    python Scripts/weight_optimization.py
    ```
 

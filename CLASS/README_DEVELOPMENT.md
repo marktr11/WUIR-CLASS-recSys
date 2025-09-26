@@ -113,17 +113,17 @@ CLASS/results/
 ### Management Commands
 1. List results:
 ```bash
-python manage_results.py list
+python CLASS/manage_results.py list
 ```
 
 2. Backup results:
 ```bash
-python manage_results.py backup [branch_name]
+python CLASS/manage_results.py backup [branch_name]
 ```
 
 3. Clean up old results:
 ```bash
-python manage_results.py clean [branch_name]
+python CLASS/manage_results.py clean [branch_name]
 ```
 
 
