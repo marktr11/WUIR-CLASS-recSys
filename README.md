@@ -79,8 +79,7 @@ pip install -r requirements.txt
 
 3. Run the pipeline:
 ```bash
-cd UIR
-python Scripts/pipeline.py --config config/run.yaml
+python UIR/Scripts/pipeline.py --config UIR/config/run.yaml
 ```
 
 ### UIR (Usefulness-based)
@@ -97,8 +96,7 @@ pip install -r requirements.txt
 
 3. Run the pipeline:
 ```bash
-cd UIR
-python Scripts/pipeline.py --config config/run.yaml
+python CLASS/Scripts/pipeline.py --config CLASS/config/run.yaml
 ```
 
 ## Requirements
